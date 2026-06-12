@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: center-postgres
+    environment:
+      POSTGRES_DB: center
+      POSTGRES_USER: center
+      POSTGRES_PASSWORD: center
+    ports:
+      - "5432:5432"
+    volumes:
+      - center_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U center -d center"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  center_pgdata:
