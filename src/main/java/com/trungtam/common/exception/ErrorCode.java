@@ -29,8 +29,27 @@ public enum ErrorCode {
     // 409
     USERNAME_EXISTS(HttpStatus.CONFLICT, "Ten dang nhap da ton tai"),
     EMAIL_EXISTS(HttpStatus.CONFLICT, "Email da ton tai"),
+    CODE_DUPLICATED(HttpStatus.CONFLICT, "Ma bai tap da ton tai"),
+
+    // 400 — Exercise validation
+    NO_CORRECT_OPTION(HttpStatus.BAD_REQUEST, "Trac nghiem phai co it nhat 1 dap an dung"),
+    MULTIPLE_CORRECT_OPTION(HttpStatus.BAD_REQUEST, "Trac nghiem chi duoc co 1 dap an dung"),
+
+    // 404 — Exercise
+    EXERCISE_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay bai tap"),
+
+    // 400 — File validation
+    FILE_EMPTY(HttpStatus.BAD_REQUEST, "File rong"),
+    UNSUPPORTED_FILE_TYPE(HttpStatus.BAD_REQUEST, "Dinh dang file khong ho tro"),
+
+    // 404 — File
+    FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay file"),
+
+    // 413 — File size
+    FILE_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "File vuot qua dung luong cho phep"),
 
     // 500
+    FILE_STORAGE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Loi luu tru file"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Loi he thong");
 
     private final HttpStatus status;
