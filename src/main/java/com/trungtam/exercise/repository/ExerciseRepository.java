@@ -9,4 +9,6 @@ public interface ExerciseRepository extends JpaRepository<Exercise, Long>, JpaSp
     boolean existsByCode(String code);
 
     boolean existsByCodeAndIdNot(String code, Long id);
+
+    boolean existsBySubjectEntityId(Long subjectId);
 }

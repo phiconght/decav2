@@ -18,8 +18,7 @@ public final class ExerciseSpec {
     public static Specification<Exercise> build(ExerciseSearchParams p) {
         return Specification
                 .where(likeCode(p.getCode()))
-                .and(eqGradeLevel(p.getGradeLevel()))
-                .and(eqSubject(p.getSubject()))
+                .and(eqSubjectId(p.getSubjectId()))
                 .and(likeCreatedBy(p.getCreatedBy()))
                 .and(fromDate(p.getCreatedFrom()))
                 .and(toDate(p.getCreatedTo()))
@@ -31,14 +30,9 @@ public final class ExerciseSpec {
                 : cb.like(cb.lower(root.get("code")), "%" + code.toLowerCase() + "%");
     }
 
-    private static Specification<Exercise> eqGradeLevel(String gradeLevel) {
-        return (root, q, cb) -> gradeLevel == null || gradeLevel.isBlank() ? null
-                : cb.equal(root.get("gradeLevel"), gradeLevel);
-    }
-
-    private static Specification<Exercise> eqSubject(String subject) {
-        return (root, q, cb) -> subject == null || subject.isBlank() ? null
-                : cb.equal(root.get("subject"), subject);
+    private static Specification<Exercise> eqSubjectId(Long subjectId) {
+        return (root, q, cb) -> subjectId == null ? null
+                : cb.equal(root.get("subjectEntity").get("id"), subjectId);
     }
 
     private static Specification<Exercise> likeCreatedBy(String createdBy) {

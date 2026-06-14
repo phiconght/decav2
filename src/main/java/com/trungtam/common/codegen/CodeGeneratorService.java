@@ -66,6 +66,15 @@ public class CodeGeneratorService {
     }
 
     /**
+     * Sinh ma lop thuc te (prefix = "C", typeChar = 'L').
+     * Vi du: CTO10-00001L (Lop Toan Khoi 10, nam 2026, thu tu 1)
+     */
+    @Transactional
+    public String generateClassCode(String subjectName, String gradeLevel) {
+        return generate("C", subjectName, gradeLevel, 'L');
+    }
+
+    /**
      * Ham sinh ma chinh, tai su dung cho nhieu loai tai lieu.
      *
      * @param prefix     "B" hoac "D"

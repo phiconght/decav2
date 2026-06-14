@@ -1,0 +1,75 @@
+package com.trungtam.schoolclass.controller;
+
+import com.trungtam.common.dto.ApiResponse;
+import com.trungtam.schoolclass.dto.request.ClassSearchParams;
+import com.trungtam.schoolclass.dto.request.CreateClassRequest;
+import com.trungtam.schoolclass.dto.request.UpdateClassStatusRequest;
+import com.trungtam.schoolclass.dto.response.ClassDetailResponse;
+import com.trungtam.schoolclass.dto.response.ClassPageResponse;
+import com.trungtam.schoolclass.service.ClassService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/v1/classes")
+@RequiredArgsConstructor
+public class ClassController {
+
+    private final ClassService classService;
+
+    @GetMapping
+    @PreAuthorize("hasAuthority('CLASS:READ')")
+    public ClassPageResponse search(@ModelAttribute ClassSearchParams params) {
+        return classService.search(params);
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('CLASS:READ')")
+    public ApiResponse<ClassDetailResponse> getById(@PathVariable Long id) {
+        return ApiResponse.ok(classService.getById(id));
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('CLASS:WRITE')")
+    public ApiResponse<ClassDetailResponse> create(@Valid @RequestBody CreateClassRequest request) {
+        return ApiResponse.ok(classService.create(request));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('CLASS:WRITE')")
+    public ApiResponse<ClassDetailResponse> update(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateClassRequest request) {
+        return ApiResponse.ok(classService.update(id, request));
+    }
+
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('CLASS:WRITE')")
+    public ApiResponse<ClassDetailResponse> updateStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateClassStatusRequest request) {
+        classService.updateStatus(id, request);
+        return ApiResponse.ok(classService.getById(id));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('CLASS:DELETE')")
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        classService.delete(id);
+        return ApiResponse.ok();
+    }
+}

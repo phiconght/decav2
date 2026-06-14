@@ -10,8 +10,7 @@ import java.util.List;
 
 public record CreateExerciseRequest(
         String title,
-        @NotBlank String gradeLevel,
-        @NotBlank String subject,
+        @NotNull Long subjectId,
         @NotNull ExerciseType type,
         ExerciseStatus status,
         @NotBlank String questionText,

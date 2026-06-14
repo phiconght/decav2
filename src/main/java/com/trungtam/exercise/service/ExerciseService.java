@@ -17,6 +17,8 @@ import com.trungtam.exercise.entity.ExerciseType;
 import com.trungtam.exercise.entity.TrueFalseItem;
 import com.trungtam.exercise.repository.ExerciseRepository;
 import com.trungtam.exercise.repository.ExerciseSpec;
+import com.trungtam.subject.entity.Subject;
+import com.trungtam.subject.repository.SubjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -36,6 +38,7 @@ import java.util.List;
 public class ExerciseService {
 
     private final ExerciseRepository exerciseRepository;
+    private final SubjectRepository subjectRepository;
     private final CodeGeneratorService codeGeneratorService;
 
     public ExercisePageResponse search(ExerciseSearchParams params) {
@@ -55,13 +58,14 @@ public class ExerciseService {
 
     @Transactional
     public ExerciseDetailResponse create(CreateExerciseRequest req) {
+        Subject subject = findSubjectOrThrow(req.subjectId());
         char typeChar = switch (req.type()) {
             case MULTIPLE_CHOICE -> 'N';
             case ESSAY           -> 'L';
             case TRUE_FALSE      -> 'D';
         };
-        String code = codeGeneratorService.generateExerciseCode(req.subject(), req.gradeLevel(), typeChar);
-        Exercise exercise = buildExercise(new Exercise(), req, code);
+        String code = codeGeneratorService.generateExerciseCode(subject.getName(), subject.getGradeLevel(), typeChar);
+        Exercise exercise = buildExercise(new Exercise(), req, subject, code);
         validateMultipleChoice(req);
         return ExerciseDetailResponse.from(exerciseRepository.save(exercise));
     }
@@ -69,11 +73,12 @@ public class ExerciseService {
     @Transactional
     public ExerciseDetailResponse update(Long id, CreateExerciseRequest req) {
         Exercise exercise = findOrThrow(id);
+        Subject subject = findSubjectOrThrow(req.subjectId());
         // Xoa dap an cu truoc khi ghi moi (orphanRemoval xu ly DELETE)
         exercise.getOptions().clear();
         exercise.getTrueFalseItems().clear();
         // Giu nguyen code da sinh tu luc tao, chi cap nhat noi dung
-        buildExercise(exercise, req, exercise.getCode());
+        buildExercise(exercise, req, subject, exercise.getCode());
         validateMultipleChoice(req);
         return ExerciseDetailResponse.from(exerciseRepository.save(exercise));
     }
@@ -97,11 +102,15 @@ public class ExerciseService {
                 .orElseThrow(() -> new AppException(ErrorCode.EXERCISE_NOT_FOUND));
     }
 
-    private Exercise buildExercise(Exercise exercise, CreateExerciseRequest req, String code) {
+    private Subject findSubjectOrThrow(Long subjectId) {
+        return subjectRepository.findById(subjectId)
+                .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
+    }
+
+    private Exercise buildExercise(Exercise exercise, CreateExerciseRequest req, Subject subject, String code) {
         exercise.setCode(code);
         exercise.setTitle(req.title());
-        exercise.setGradeLevel(req.gradeLevel());
-        exercise.setSubject(req.subject());
+        exercise.setSubjectEntity(subject);
         exercise.setType(req.type());
         exercise.setStatus(req.status() != null ? req.status() : ExerciseStatus.ACTIVE);
         exercise.setQuestionText(req.questionText());

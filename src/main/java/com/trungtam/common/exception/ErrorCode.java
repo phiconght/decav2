@@ -38,6 +38,12 @@ public enum ErrorCode {
     // 404 — Exercise
     EXERCISE_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay bai tap"),
 
+    // 404 — Subject
+    SUBJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay mon hoc"),
+
+    // 404 — Class
+    CLASS_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay lop hoc"),
+
     // 400 — File validation
     FILE_EMPTY(HttpStatus.BAD_REQUEST, "File rong"),
     UNSUPPORTED_FILE_TYPE(HttpStatus.BAD_REQUEST, "Dinh dang file khong ho tro"),

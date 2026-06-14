@@ -20,7 +20,7 @@ import java.util.Set;
 
 /**
  * Seed roles + permissions cho profile DEV (vi Flyway bi tat khi dung H2).
- * O prod, du lieu nay do Flyway V1__init_auth.sql seed. Chay truoc {@link AdminInitializer}.
+ * O prod, du lieu nay do Flyway seed. Chay truoc {@link AdminInitializer}.
  */
 @Slf4j
 @Component
@@ -39,17 +39,22 @@ public class DevDataSeeder implements ApplicationRunner {
             return;
         }
 
-        // Quyen chi tiet (giong Flyway V1)
         List<Permission> permissions = List.of(
-                permission("USER:READ", "USER", "READ", "Xem nguoi dung"),
-                permission("USER:WRITE", "USER", "WRITE", "Tao / sua nguoi dung"),
-                permission("USER:DELETE", "USER", "DELETE", "Xoa nguoi dung"),
-                permission("ROLE:READ", "ROLE", "READ", "Xem vai tro / quyen"),
-                permission("ROLE:WRITE", "ROLE", "WRITE", "Gan vai tro / quyen")
+                permission("USER:READ",      "USER",     "READ",   "Xem nguoi dung"),
+                permission("USER:WRITE",     "USER",     "WRITE",  "Tao / sua nguoi dung"),
+                permission("USER:DELETE",    "USER",     "DELETE", "Xoa nguoi dung"),
+                permission("ROLE:READ",      "ROLE",     "READ",   "Xem vai tro / quyen"),
+                permission("ROLE:WRITE",     "ROLE",     "WRITE",  "Gan vai tro / quyen"),
+                permission("EXERCISE:READ",  "EXERCISE", "READ",   "Xem bai tap"),
+                permission("EXERCISE:WRITE", "EXERCISE", "WRITE",  "Tao / sua bai tap"),
+                permission("EXERCISE:DELETE","EXERCISE", "DELETE", "Xoa bai tap"),
+                permission("SUBJECT:READ",   "SUBJECT",  "READ",   "Xem mon hoc"),
+                permission("CLASS:READ",     "CLASS",    "READ",   "Xem lop"),
+                permission("CLASS:WRITE",    "CLASS",    "WRITE",  "Tao / sua lop"),
+                permission("CLASS:DELETE",   "CLASS",    "DELETE", "Xoa lop")
         );
         permissionRepository.saveAll(permissions);
 
-        // ADMIN nhan toan bo quyen; cac role khac chua gan quyen o buoc nay
         Set<Permission> all = new HashSet<>(permissions);
         for (RoleName name : RoleName.values()) {
             Role role = new Role(name, name.name());
@@ -59,7 +64,7 @@ public class DevDataSeeder implements ApplicationRunner {
             roleRepository.save(role);
         }
 
-        log.info("[DEV] Da seed {} role va {} permission (H2 in-memory)",
+        log.info("[DEV] Da seed {} role, {} permission (H2 in-memory)",
                 RoleName.values().length, permissions.size());
     }
 

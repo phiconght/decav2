@@ -1,0 +1,42 @@
+package com.trungtam.schoolclass.dto.response;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.trungtam.schoolclass.entity.SchoolClass;
+
+import java.time.Instant;
+import java.time.LocalDate;
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public record ClassDetailResponse(
+        Long id,
+        String code,
+        String name,
+        Long subjectId,
+        String subjectName,
+        String gradeLevel,
+        LocalDate startDate,
+        LocalDate endDate,
+        String status,
+        String createdBy,
+        String updatedBy,
+        Instant createdAt,
+        Instant updatedAt
+) {
+    public static ClassDetailResponse from(SchoolClass c) {
+        return new ClassDetailResponse(
+                c.getId(),
+                c.getCode(),
+                c.getName(),
+                c.getSubject().getId(),
+                c.getSubject().getName(),
+                c.getSubject().getGradeLevel(),
+                c.getStartDate(),
+                c.getEndDate(),
+                c.getStatus().name(),
+                c.getCreatedBy(),
+                c.getUpdatedBy(),
+                c.getCreatedAt(),
+                c.getUpdatedAt()
+        );
+    }
+}
