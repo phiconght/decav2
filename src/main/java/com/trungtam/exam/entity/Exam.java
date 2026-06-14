@@ -1,8 +1,10 @@
-package com.trungtam.schoolclass.entity;
+package com.trungtam.exam.entity;
 
 import com.trungtam.common.entity.BaseEntity;
 import com.trungtam.identity.entity.User;
+import com.trungtam.schoolclass.entity.SchoolClass;
 import com.trungtam.subject.entity.Subject;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -15,21 +17,25 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDate;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Entity
-@Table(name = "classes")
+@Table(name = "exams")
 @Getter
 @Setter
 @NoArgsConstructor
-public class SchoolClass extends BaseEntity {
+public class Exam extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,26 +44,43 @@ public class SchoolClass extends BaseEntity {
     @Column(name = "code", nullable = false, unique = true, length = 20)
     private String code;
 
-    @Column(name = "name", nullable = false, length = 50)
+    @Column(name = "name", nullable = false)
     private String name;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "subject_id", nullable = false)
     private Subject subject;
 
-    @Column(name = "start_date")
-    private LocalDate startDate;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", nullable = false, length = 20)
+    private ExamType type;
 
-    @Column(name = "end_date")
-    private LocalDate endDate;
+    @Column(name = "duration_minutes")
+    private Integer durationMinutes;
+
+    @Column(name = "publish_at")
+    private Instant publishAt;
+
+    @Column(name = "end_at")
+    private Instant endAt;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private ClassStatus status = ClassStatus.ACTIVE;
+    private ExamStatus status = ExamStatus.ACTIVE;
+
+    @OneToMany(mappedBy = "exam", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("sortOrder ASC")
+    private List<ExamExercise> examExercises = new ArrayList<>();
 
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(name = "class_students",
-            joinColumns = @JoinColumn(name = "class_id"),
+    @JoinTable(name = "exam_classes",
+            joinColumns = @JoinColumn(name = "exam_id"),
+            inverseJoinColumns = @JoinColumn(name = "class_id"))
+    private Set<SchoolClass> classes = new HashSet<>();
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "exam_students",
+            joinColumns = @JoinColumn(name = "exam_id"),
             inverseJoinColumns = @JoinColumn(name = "user_id"))
     private Set<User> students = new HashSet<>();
 }

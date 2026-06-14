@@ -15,10 +15,12 @@ public record ClassListItem(
         LocalDate startDate,
         LocalDate endDate,
         String status,
+        long studentCount,
+        long examCount,
         String createdBy,
         Instant createdAt
 ) {
-    public static ClassListItem from(SchoolClass c) {
+    public static ClassListItem from(SchoolClass c, long studentCount, long examCount) {
         return new ClassListItem(
                 c.getId(),
                 c.getCode(),
@@ -29,6 +31,8 @@ public record ClassListItem(
                 c.getStartDate(),
                 c.getEndDate(),
                 c.getStatus().name(),
+                studentCount,
+                examCount,
                 c.getCreatedBy(),
                 c.getCreatedAt()
         );

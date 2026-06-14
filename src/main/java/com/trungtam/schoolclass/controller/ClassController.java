@@ -1,11 +1,13 @@
 package com.trungtam.schoolclass.controller;
 
 import com.trungtam.common.dto.ApiResponse;
+import com.trungtam.schoolclass.dto.request.AddStudentsRequest;
 import com.trungtam.schoolclass.dto.request.ClassSearchParams;
 import com.trungtam.schoolclass.dto.request.CreateClassRequest;
 import com.trungtam.schoolclass.dto.request.UpdateClassStatusRequest;
 import com.trungtam.schoolclass.dto.response.ClassDetailResponse;
 import com.trungtam.schoolclass.dto.response.ClassPageResponse;
+import com.trungtam.schoolclass.dto.response.StudentOptionResponse;
 import com.trungtam.schoolclass.service.ClassService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,8 +22,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/classes")
@@ -70,6 +75,40 @@ public class ClassController {
     @PreAuthorize("hasAuthority('CLASS:DELETE')")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         classService.delete(id);
+        return ApiResponse.ok();
+    }
+
+    // ---- Ghi danh ----
+
+    @GetMapping("/{id}/students")
+    @PreAuthorize("hasAuthority('CLASS:READ')")
+    public ApiResponse<List<StudentOptionResponse>> listStudents(@PathVariable Long id) {
+        return ApiResponse.ok(classService.listStudents(id));
+    }
+
+    @GetMapping("/{id}/eligible-students")
+    @PreAuthorize("hasAuthority('CLASS:WRITE')")
+    public ApiResponse<List<StudentOptionResponse>> listEligibleStudents(
+            @PathVariable Long id,
+            @RequestParam(required = false) String keyword) {
+        return ApiResponse.ok(classService.listEligibleStudents(id, keyword));
+    }
+
+    @PostMapping("/{id}/students")
+    @PreAuthorize("hasAuthority('CLASS:WRITE')")
+    public ApiResponse<Void> addStudents(
+            @PathVariable Long id,
+            @Valid @RequestBody AddStudentsRequest request) {
+        classService.addStudents(id, request);
+        return ApiResponse.ok();
+    }
+
+    @DeleteMapping("/{id}/students/{userId}")
+    @PreAuthorize("hasAuthority('CLASS:WRITE')")
+    public ApiResponse<Void> removeStudent(
+            @PathVariable Long id,
+            @PathVariable Long userId) {
+        classService.removeStudent(id, userId);
         return ApiResponse.ok();
     }
 }

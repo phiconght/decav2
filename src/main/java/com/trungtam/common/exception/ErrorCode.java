@@ -44,6 +44,16 @@ public enum ErrorCode {
     // 404 — Class
     CLASS_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay lop hoc"),
 
+    // 400 — Class enrollment
+    NOT_A_STUDENT(HttpStatus.BAD_REQUEST, "Nguoi dung khong phai hoc sinh"),
+
+    // 404 — Exam
+    EXAM_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay de thi"),
+
+    // 400 — Exam validation
+    EXAM_INVALID_TIME_RANGE(HttpStatus.BAD_REQUEST, "Thoi diem ket thuc phai sau thoi diem phat de"),
+    EXAM_SUPPLEMENTARY_NO_STUDENT(HttpStatus.BAD_REQUEST, "De bo sung phai chon it nhat 1 hoc sinh"),
+
     // 400 — File validation
     FILE_EMPTY(HttpStatus.BAD_REQUEST, "File rong"),
     UNSUPPORTED_FILE_TYPE(HttpStatus.BAD_REQUEST, "Dinh dang file khong ho tro"),
