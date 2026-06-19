@@ -16,21 +16,32 @@ Liên quan: frontend web `ADMIN/` (Ant Design Pro) và app `MOBILE/` (Flutter) �
 | Web | Spring Web MVC, springdoc-openapi (Swagger) 2.8.6 |
 | Persistence | Spring Data JPA (Hibernate) |
 | DB (prod) | PostgreSQL + Flyway migration |
-| DB (dev) | **H2 in-memory** (profile `dev`, không cần Postgres/Docker) |
+| DB (dev) | **PostgreSQL** (Docker, profile `dev`) + Flyway migration |
 | Tiện ích | Lombok **1.18.44** (pin để hợp JDK/IntelliJ) |
 | Build | Maven (máy này: `C:\develop\apache-maven-3.9.9`) |
 
 **Port: 9090.** Swagger: `http://localhost:9090/swagger-ui.html`.
 
 ## 3. Cách chạy
+**Bước 1 — Cần một PostgreSQL ở `localhost:5432` với db/user/pass = `center`/`center`/`center`.** Chọn 1 trong 2:
+- **PostgreSQL cài sẵn trên máy** (máy dev hiện tại: **PostgreSQL 17 native**, không dùng Docker). Tạo db + user một lần:
+  ```sql
+  CREATE USER center WITH PASSWORD 'center';
+  CREATE DATABASE center OWNER center;
+  ```
+- **Hoặc dùng Docker** (nếu máy có Docker Desktop): `docker compose up -d` (tạo db `center` trong volume `center_pgdata`).
+
+**Bước 2 — Chạy BE:**
 ```powershell
-# Dev (H2, KHÔNG cần Postgres) — luôn dùng cái này khi code local
 $env:JAVA_HOME="C:\Program Files\Eclipse Adoptium\jdk-21.0.10.7-hotspot"
 & "C:\develop\apache-maven-3.9.9\bin\mvn.cmd" -f "pom.xml" spring-boot:run "-Dspring-boot.run.profiles=dev"
 ```
-- Trong **IntelliJ**: Run Configuration → **Active profiles = `dev`** (nếu không sẽ chạy profile mặc định = Postgres và lỗi `28P01 password authentication failed`).
+- Trong **IntelliJ**: Run Configuration → **Active profiles = `dev`**.
 - **Tài khoản admin mặc định** (tự tạo lúc khởi động): `admin` / `Admin@123`.
-- Dev dùng H2 in-memory → **mất dữ liệu khi tắt**, mỗi lần chạy seed lại role/permission + admin.
+- Dev dùng PostgreSQL + Flyway → **dữ liệu bền**, không mất khi tắt BE.
+- Reset sạch DB (chạy lại toàn bộ migration từ đầu):
+  - Native: `psql -U center -d center -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"`
+  - Docker: `docker compose down -v && docker compose up -d`
 
 ## 4. Cấu trúc thư mục (`src/main/java/com/trungtam/`)
 ```
@@ -57,8 +68,8 @@ identity/
   bootstrap/   AdminInitializer (tạo admin), DevDataSeeder (seed role/permission cho profile dev)
 resources/
   application.yml            # cấu hình mặc định = PROD (Postgres + Flyway)
-  application-dev.yml        # override = DEV (H2, tắt Flyway, ddl-auto create-drop)
-  db/migration/V1__init_auth.sql   # schema + seed role/permission (chỉ chạy ở prod/Flyway)
+  application-dev.yml        # override = DEV (Postgres Docker, Flyway bật, format_sql true)
+  db/migration/V1__init_auth.sql   # schema + seed role/permission (chạy cả dev lẫn prod)
 ```
 
 ## 5. Phân quyền (RBAC)
@@ -118,7 +129,7 @@ Lỗi -> GlobalExceptionHandler -> ApiResponse.fail(ApiError)
 4. **Service** `academic/service/ClassService.java` (`@Service`, `@Transactional`, ném `AppException(ErrorCode.X)`).
 5. **Controller** `academic/controller/ClassController.java` (`@RestController`, `@PreAuthorize`, trả `ApiResponse`).
 6. **Mã lỗi mới**: thêm vào enum `ErrorCode`.
-7. **Migration** (prod): thêm `db/migration/V2__*.sql`. Dev (H2) tự tạo schema từ entity; nếu cần seed dev thì thêm vào `DevDataSeeder`.
+7. **Migration**: thêm `db/migration/V{n}__*.sql` — Flyway chạy cả dev lẫn prod. Thêm permission mới cũng vào migration này.
 8. **Ownership**: nếu cần giới hạn theo lớp/người → thêm method vào `SecurityService` và dùng trong `@PreAuthorize`.
 
 ## 9. Quy ước & lưu ý

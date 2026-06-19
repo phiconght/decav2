@@ -1,22 +1,20 @@
-# Profile DEV: chay BE khong can Postgres/Docker (DB H2 in-memory).
-# Kich hoat bang: --spring.profiles.active=dev (hoac -Dspring-boot.run.profiles=dev).
-# Prod van dung Postgres + Flyway nhu application.yml mac dinh.
+# Profile DEV: chay BE voi PostgreSQL local (docker-compose).
+# Yeu cau: docker compose up -d (PostgreSQL chay o localhost:5432/center)
+# Khoi dong: -Dspring-boot.run.profiles=dev (hoac IntelliJ Active profiles = dev)
+# Tai khoan admin mac dinh: admin / Admin@123
 spring:
   datasource:
-    url: jdbc:h2:mem:center;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: ""
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/center}
+    username: ${DB_USERNAME:center}
+    password: ${DB_PASSWORD:center}
+    driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      # Hibernate tu tao schema tu entity (khong dung Flyway o dev)
-      ddl-auto: create-drop
+      ddl-auto: validate
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
   flyway:
-    enabled: false
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true

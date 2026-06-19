@@ -19,8 +19,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Seed roles + permissions cho profile DEV (vi Flyway bi tat khi dung H2).
- * O prod, du lieu nay do Flyway seed. Chay truoc {@link AdminInitializer}.
+ * Seed roles + permissions cho profile DEV neu chua co (fallback an toan).
+ * Binh thuong Flyway V1 da seed du lieu nay khi khoi dong.
+ * Chay truoc {@link AdminInitializer}.
  */
 @Slf4j
 @Component
@@ -70,7 +71,7 @@ public class DevDataSeeder implements ApplicationRunner {
             roleRepository.save(role);
         }
 
-        log.info("[DEV] Da seed {} role, {} permission (H2 in-memory)",
+        log.info("[DEV] Da seed {} role, {} permission (fallback - Flyway chua chay?)",
                 RoleName.values().length, permissions.size());
     }
 

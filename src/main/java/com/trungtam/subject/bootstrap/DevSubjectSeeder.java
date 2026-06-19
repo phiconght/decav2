@@ -15,8 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Seed 49 mon hoc vao H2 cho profile DEV.
- * O prod, Flyway V6 da seed du lieu nay.
+ * Seed 49 mon hoc cho profile DEV neu chua co (fallback an toan).
+ * Binh thuong Flyway V6 da seed du lieu nay khi khoi dong.
  */
 @Slf4j
 @Component
@@ -53,6 +53,6 @@ public class DevSubjectSeeder implements ApplicationRunner {
             }
         }
         subjectRepository.saveAll(subjects);
-        log.info("[DEV] Da seed {} mon hoc (catalog H2 in-memory)", subjects.size());
+        log.info("[DEV] Da seed {} mon hoc (fallback - Flyway chua chay?)", subjects.size());
     }
 }
