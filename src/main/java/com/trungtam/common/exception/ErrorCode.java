@@ -29,6 +29,10 @@ public enum ErrorCode {
     // 409
     USERNAME_EXISTS(HttpStatus.CONFLICT, "Ten dang nhap da ton tai"),
     EMAIL_EXISTS(HttpStatus.CONFLICT, "Email da ton tai"),
+
+    // 400 — User guard
+    CANNOT_MODIFY_SELF(HttpStatus.BAD_REQUEST, "Khong the tu thay doi trang thai hoac quyen cua chinh minh"),
+    LAST_ADMIN(HttpStatus.BAD_REQUEST, "Khong the vo hieu hoa admin cuoi cung"),
     CODE_DUPLICATED(HttpStatus.CONFLICT, "Ma bai tap da ton tai"),
 
     // 400 — Exercise validation

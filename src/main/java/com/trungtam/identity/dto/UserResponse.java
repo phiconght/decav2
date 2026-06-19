@@ -2,6 +2,7 @@ package com.trungtam.identity.dto;
 
 import com.trungtam.identity.entity.User;
 
+import java.time.Instant;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -16,7 +17,9 @@ public record UserResponse(
         String fullName,
         String status,
         Set<String> roles,
-        Set<String> permissions
+        Set<String> permissions,
+        String createdBy,
+        Instant createdAt
 ) {
     public static UserResponse from(User user) {
         Set<String> roles = new TreeSet<>();
@@ -33,6 +36,8 @@ public record UserResponse(
                 user.getFullName(),
                 user.getStatus().name(),
                 roles,
-                permissions);
+                permissions,
+                user.getCreatedBy(),
+                user.getCreatedAt());
     }
 }
