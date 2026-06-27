@@ -141,6 +141,13 @@ public class ClassService {
                 .toList();
     }
 
+    /** Dropdown giao vien (gate CLASS:READ — phuc vu xep lich, khong can USER:READ). */
+    public List<StudentOptionResponse> teacherOptions(String keyword) {
+        return userRepository.findByRoleAndKeyword(RoleName.TEACHER, keyword).stream()
+                .map(StudentOptionResponse::from)
+                .toList();
+    }
+
     @Transactional
     public void addStudents(Long classId, AddStudentsRequest req) {
         SchoolClass schoolClass = findOrThrow(classId);

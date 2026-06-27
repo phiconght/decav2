@@ -2,6 +2,7 @@ package com.trungtam.leave.service;
 
 import com.trungtam.common.exception.AppException;
 import com.trungtam.common.exception.ErrorCode;
+import com.trungtam.identity.entity.RoleName;
 import com.trungtam.identity.entity.User;
 import com.trungtam.identity.repository.UserRepository;
 import com.trungtam.leave.dto.request.CreateLeaveRequest;
@@ -36,7 +37,9 @@ import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Nghiep vu don xin nghi: tao / duyet / tu choi / liet ke + tien ich isOnLeave cho job.
@@ -57,6 +60,11 @@ public class LeaveService {
 
     public LeavePageResponse list(LeaveSearchParams params) {
         Specification<LeaveRequest> spec = buildSpec(params);
+        // Scope theo vai tro: ADMIN xem tat ca; TEACHER chi HV cua lop minh; PARENT chi cac con; STUDENT chi minh.
+        User me = currentUser();
+        if (!hasRole(me, RoleName.ADMIN)) {
+            spec = spec.and(studentIn(scopedStudentIds(me)));
+        }
         Sort sort = resolveSort(params.getSortField(), params.getSortOrder());
         int page = Math.max(0, params.getCurrent() - 1);
         int size = params.getPageSize() < 1 ? 10 : Math.min(params.getPageSize(), 100);
@@ -224,6 +232,38 @@ public class LeaveService {
         String username = SecurityUtils.requireCurrentUsername();
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private boolean hasRole(User u, RoleName role) {
+        return u.getRoles().stream().anyMatch(r -> r.getName() == role);
+    }
+
+    /** Tap hoc vien ma user duoc xem don nghi (TEACHER: HV lop minh; PARENT: con; STUDENT: minh). */
+    private List<Long> scopedStudentIds(User me) {
+        Set<Long> ids = new HashSet<>();
+        if (hasRole(me, RoleName.TEACHER)) {
+            List<Long> classIds = schoolClassRepository.findClassesByTeacherId(me.getId())
+                    .stream().map(SchoolClass::getId).toList();
+            if (!classIds.isEmpty()) {
+                schoolClassRepository.findStudentsByClassIds(classIds)
+                        .forEach(u -> ids.add(u.getId()));
+            }
+        }
+        if (hasRole(me, RoleName.PARENT)) {
+            studentParentRepository.findByParentIdOrderByIdAsc(me.getId())
+                    .forEach(sp -> ids.add(sp.getStudent().getId()));
+        }
+        if (hasRole(me, RoleName.STUDENT)) {
+            ids.add(me.getId());
+        }
+        return new ArrayList<>(ids);
+    }
+
+    /** Loc theo tap hoc vien; rong -> khong tra dong nao. */
+    private Specification<LeaveRequest> studentIn(List<Long> studentIds) {
+        return (root, q, cb) -> studentIds.isEmpty()
+                ? cb.disjunction()
+                : root.get("student").get("id").in(studentIds);
     }
 
     private Specification<LeaveRequest> buildSpec(LeaveSearchParams params) {

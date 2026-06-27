@@ -142,4 +142,12 @@ public class ClassController {
     public ApiResponse<List<ClassListItem>> listMyClasses() {
         return ApiResponse.ok(classService.listMyClasses());
     }
+
+    /** Dropdown giao vien cho man xep lich (gate CLASS:READ). */
+    @GetMapping("/teacher-options")
+    @PreAuthorize("hasAuthority('CLASS:READ')")
+    public ApiResponse<List<StudentOptionResponse>> teacherOptions(
+            @RequestParam(required = false) String keyword) {
+        return ApiResponse.ok(classService.teacherOptions(keyword));
+    }
 }
