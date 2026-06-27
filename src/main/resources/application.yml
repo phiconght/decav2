@@ -48,6 +48,12 @@ app:
   bootstrap:
     admin-username: ${APP_ADMIN_USERNAME:admin}
     admin-password: ${APP_ADMIN_PASSWORD:Admin@123}
+  jobs:
+    exam-backfill:
+      # Bu map De thi (BY_CLASS) <-> Hoc vien con thieu, lay tu class_students
+      enabled: ${APP_EXAM_BACKFILL_ENABLED:true}
+      fixed-delay: ${APP_EXAM_BACKFILL_FIXED_DELAY:60000}     # ms, mac dinh 60s
+      initial-delay: ${APP_EXAM_BACKFILL_INITIAL_DELAY:30000} # ms, cho app khoi dong
 
 springdoc:
   swagger-ui:

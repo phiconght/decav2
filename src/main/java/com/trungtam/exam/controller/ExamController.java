@@ -4,8 +4,12 @@ import com.trungtam.common.dto.ApiResponse;
 import com.trungtam.exam.dto.request.CreateExamRequest;
 import com.trungtam.exam.dto.request.ExamSearchParams;
 import com.trungtam.exam.dto.request.UpdateExamStatusRequest;
+import com.trungtam.exam.dto.request.UpdateExamStudentStatusRequest;
+import com.trungtam.exam.dto.response.ExamClassItem;
 import com.trungtam.exam.dto.response.ExamDetailResponse;
+import com.trungtam.exam.dto.response.ExamListItem;
 import com.trungtam.exam.dto.response.ExamPageResponse;
+import com.trungtam.exam.dto.response.StudentExamItem;
 import com.trungtam.exam.dto.response.StudentOptionResponse;
 import com.trungtam.exam.service.ExamService;
 import jakarta.validation.Valid;
@@ -81,5 +85,39 @@ public class ExamController {
     public ApiResponse<List<StudentOptionResponse>> studentOptions(
             @RequestParam(required = false) List<Long> classIds) {
         return ApiResponse.ok(examService.listStudentOptions(classIds));
+    }
+
+    /** Danh sach de thi cua 1 lop (self-scoped cho hoc vien da dang nhap). */
+    @GetMapping("/by-class/{classId}")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<List<ExamListItem>> listByClass(@PathVariable Long classId) {
+        return ApiResponse.ok(examService.listExamsByClass(classId));
+    }
+
+    /** Danh sach khoa hoc cua 1 de (popup cot "So khoa"). */
+    @GetMapping("/{examId}/classes")
+    @PreAuthorize("hasAuthority('EXAM:READ')")
+    public ApiResponse<List<ExamClassItem>> listExamClasses(@PathVariable Long examId) {
+        return ApiResponse.ok(examService.listExamClasses(examId));
+    }
+
+    /** Danh sach de thi cua 1 hoc vien trong 1 khoa (popup man Hoc vien). */
+    @GetMapping("/student/{userId}/class/{classId}")
+    @PreAuthorize("hasAuthority('EXAM:READ')")
+    public ApiResponse<List<StudentExamItem>> listStudentExams(
+            @PathVariable Long userId,
+            @PathVariable Long classId) {
+        return ApiResponse.ok(examService.listStudentExamsInClass(userId, classId));
+    }
+
+    /** Admin doi trang thai de cho 1 hoc vien. */
+    @PatchMapping("/{examId}/students/{userId}/status")
+    @PreAuthorize("hasAuthority('EXAM:WRITE')")
+    public ApiResponse<Void> updateStudentStatus(
+            @PathVariable Long examId,
+            @PathVariable Long userId,
+            @Valid @RequestBody UpdateExamStudentStatusRequest request) {
+        examService.updateExamStudentStatus(examId, userId, request);
+        return ApiResponse.ok();
     }
 }

@@ -44,6 +44,10 @@ public class Exercise extends BaseEntity {
     @JoinColumn(name = "subject_id", nullable = false)
     private Subject subjectEntity;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "topic_id")
+    private com.trungtam.topic.entity.Topic topic;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 30)
     private ExerciseType type;
@@ -51,6 +55,10 @@ public class Exercise extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private ExerciseStatus status = ExerciseStatus.ACTIVE;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "difficulty", nullable = false, length = 20)
+    private ExerciseDifficulty difficulty = ExerciseDifficulty.MEDIUM;
 
     @Column(name = "question_text", columnDefinition = "TEXT")
     private String questionText;

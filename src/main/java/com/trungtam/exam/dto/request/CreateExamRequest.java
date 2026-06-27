@@ -13,6 +13,7 @@ import java.util.List;
 public record CreateExamRequest(
         @NotBlank String name,
         @NotNull Long subjectId,
+        Long topicId,
         @NotNull ExamType type,
         @Positive Integer durationMinutes,
         Instant publishAt,

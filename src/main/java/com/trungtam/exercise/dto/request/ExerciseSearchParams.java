@@ -12,6 +12,8 @@ import lombok.Setter;
 public class ExerciseSearchParams {
     private String code;
     private Long subjectId;
+    private Long topicId;
+    private String difficulty;
     private String createdBy;
     private String createdFrom;
     private String createdTo;

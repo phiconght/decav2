@@ -5,6 +5,7 @@ import com.trungtam.identity.entity.Role;
 import com.trungtam.identity.entity.RoleName;
 import com.trungtam.identity.entity.User;
 import com.trungtam.identity.entity.UserStatus;
+import com.trungtam.schoolclass.entity.SchoolClass;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -24,7 +25,41 @@ public final class UserSpec {
                 .and(likeFullName(p.getFullName()))
                 .and(likePhone(p.getPhone()))
                 .and(hasRole(p.getRole()))
+                .and(inClass(p.getClassId()))
+                .and(teachesClass(p.getTeachingClassId()))
                 .and(eqStatus(p.getStatus()));
+    }
+
+    // EXISTS subquery: chon user dang la hoc vien cua lop co id = classId.
+    private static Specification<User> inClass(Long classId) {
+        return (root, query, cb) -> {
+            if (classId == null) return null;
+            Subquery<Long> sub = query.subquery(Long.class);
+            Root<SchoolClass> c = sub.from(SchoolClass.class);
+            Join<SchoolClass, User> s = c.join("students");
+            sub.select(cb.literal(1L))
+               .where(
+                   cb.equal(c.get("id"), classId),
+                   cb.equal(s, root)
+               );
+            return cb.exists(sub);
+        };
+    }
+
+    // EXISTS subquery: chon user dang la giao vien phu trach khoa co id = classId.
+    private static Specification<User> teachesClass(Long classId) {
+        return (root, query, cb) -> {
+            if (classId == null) return null;
+            Subquery<Long> sub = query.subquery(Long.class);
+            Root<SchoolClass> c = sub.from(SchoolClass.class);
+            Join<SchoolClass, User> t = c.join("teachers");
+            sub.select(cb.literal(1L))
+               .where(
+                   cb.equal(c.get("id"), classId),
+                   cb.equal(t, root)
+               );
+            return cb.exists(sub);
+        };
     }
 
     private static Specification<User> likeUsername(String username) {

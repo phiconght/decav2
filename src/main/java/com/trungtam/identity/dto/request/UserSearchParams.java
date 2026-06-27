@@ -15,6 +15,8 @@ public class UserSearchParams {
     private String phone;
     private String role;
     private String status;
+    private Long classId;
+    private Long teachingClassId;
     private int current = 1;
     private int pageSize = 10;
     private String sortField;

@@ -3,7 +3,13 @@ package com.trungtam.schoolclass.service;
 import com.trungtam.common.codegen.CodeGeneratorService;
 import com.trungtam.common.exception.AppException;
 import com.trungtam.common.exception.ErrorCode;
+import com.trungtam.exam.entity.Exam;
+import com.trungtam.exam.entity.ExamStudent;
+import com.trungtam.exam.entity.ExamStudentSource;
+import com.trungtam.exam.entity.ExamStudentStatus;
+import com.trungtam.exam.entity.ExamType;
 import com.trungtam.exam.repository.ExamRepository;
+import com.trungtam.exam.repository.ExamStudentRepository;
 import com.trungtam.identity.entity.RoleName;
 import com.trungtam.identity.entity.User;
 import com.trungtam.identity.repository.UserRepository;
@@ -19,6 +25,7 @@ import com.trungtam.schoolclass.entity.ClassStatus;
 import com.trungtam.schoolclass.entity.SchoolClass;
 import com.trungtam.schoolclass.repository.ClassSpec;
 import com.trungtam.schoolclass.repository.SchoolClassRepository;
+import com.trungtam.security.SecurityUtils;
 import com.trungtam.subject.entity.Subject;
 import com.trungtam.subject.repository.SubjectRepository;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +38,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @Transactional(readOnly = true)
@@ -43,6 +52,7 @@ public class ClassService {
     private final CodeGeneratorService codeGeneratorService;
     private final UserRepository userRepository;
     private final ExamRepository examRepository;
+    private final ExamStudentRepository examStudentRepository;
 
     public ClassPageResponse search(ClassSearchParams params) {
         Specification<SchoolClass> spec = ClassSpec.build(params);
@@ -73,6 +83,7 @@ public class ClassService {
         schoolClass.setStartDate(req.startDate());
         schoolClass.setEndDate(req.endDate());
         schoolClass.setStatus(req.status() != null ? req.status() : ClassStatus.ACTIVE);
+        schoolClass.getTeachers().addAll(resolveTeachers(req.teacherIds()));
         return ClassDetailResponse.from(classRepository.save(schoolClass));
     }
 
@@ -87,6 +98,11 @@ public class ClassService {
         if (req.status() != null) {
             schoolClass.setStatus(req.status());
         }
+        // Ghi đè giáo viên: xóa + flush NGAY rồi thêm mới
+        // (tránh đụng PK class_teachers khi Hibernate insert trước delete)
+        schoolClass.getTeachers().clear();
+        classRepository.flush();
+        schoolClass.getTeachers().addAll(resolveTeachers(req.teacherIds()));
         return ClassDetailResponse.from(classRepository.save(schoolClass));
     }
 
@@ -139,6 +155,26 @@ public class ClassService {
             schoolClass.getStudents().add(user);
         }
         classRepository.save(schoolClass);
+        // Hoc vien vao khoa sau khi de da phat hanh: tao truoc dong exam_student
+        materializeNewMembersExams(classId, req.studentIds());
+    }
+
+    /** Tao truoc exam_student cho hoc vien moi vao khoa, voi cac de BY_CLASS cua khoa. */
+    private void materializeNewMembersExams(Long classId, List<Long> userIds) {
+        for (Exam exam : examRepository.findByClassId(classId)) {
+            if (exam.getType() != ExamType.BY_CLASS) continue;
+            for (Long userId : userIds) {
+                if (examStudentRepository.existsByExamIdAndUserId(exam.getId(), userId)) {
+                    continue;
+                }
+                ExamStudent es = new ExamStudent();
+                es.setExam(exam);
+                es.setUser(userRepository.getReferenceById(userId));
+                es.setSource(ExamStudentSource.CLASS);
+                es.setStatus(ExamStudentStatus.CHUA_PHAT_HANH);
+                examStudentRepository.save(es);
+            }
+        }
     }
 
     @Transactional
@@ -148,6 +184,56 @@ public class ClassService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         schoolClass.getStudents().remove(user);
         classRepository.save(schoolClass);
+    }
+
+    /** Danh sach lop ma 1 hoc vien (user) dang tham gia. */
+    public List<ClassListItem> listClassesByStudent(Long userId) {
+        return classRepository.findClassesByStudentId(userId).stream()
+                .map(c -> ClassListItem.from(
+                        c,
+                        classRepository.countStudents(c.getId()),
+                        examRepository.countByClassId(c.getId())))
+                .toList();
+    }
+
+    /** Lay thong tin gon cua khoa theo list id (cho dropdown map nhan). */
+    public List<com.trungtam.schoolclass.dto.response.ClassRefItem> listByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return classRepository.findAllById(ids).stream()
+                .map(com.trungtam.schoolclass.dto.response.ClassRefItem::from)
+                .toList();
+    }
+
+    /** Danh sach khoa hoc ma 1 giao vien phu trach. */
+    public List<ClassListItem> listClassesByTeacher(Long userId) {
+        return classRepository.findClassesByTeacherId(userId).stream()
+                .map(c -> ClassListItem.from(
+                        c,
+                        classRepository.countStudents(c.getId()),
+                        examRepository.countByClassId(c.getId())))
+                .toList();
+    }
+
+    /** Nap danh sach giao vien tu danh sach id (bo qua neu null). */
+    private Set<User> resolveTeachers(List<Long> teacherIds) {
+        Set<User> result = new HashSet<>();
+        if (teacherIds == null) return result;
+        for (Long uid : teacherIds) {
+            User user = userRepository.findById(uid)
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+            result.add(user);
+        }
+        return result;
+    }
+
+    /** Danh sach lop ma hoc vien DANG DANG NHAP tham gia (self-scoped). */
+    public List<ClassListItem> listMyClasses() {
+        String username = SecurityUtils.requireCurrentUsername();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        return listClassesByStudent(user.getId());
     }
 
     public List<StudentOptionResponse> listStudentsByClassIds(List<Long> classIds) {

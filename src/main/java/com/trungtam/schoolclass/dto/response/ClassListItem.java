@@ -4,6 +4,7 @@ import com.trungtam.schoolclass.entity.SchoolClass;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 public record ClassListItem(
         Long id,
@@ -17,6 +18,7 @@ public record ClassListItem(
         String status,
         long studentCount,
         long examCount,
+        List<StudentOptionResponse> teachers,
         String createdBy,
         Instant createdAt
 ) {
@@ -33,6 +35,7 @@ public record ClassListItem(
                 c.getStatus().name(),
                 studentCount,
                 examCount,
+                c.getTeachers().stream().map(StudentOptionResponse::from).toList(),
                 c.getCreatedBy(),
                 c.getCreatedAt()
         );

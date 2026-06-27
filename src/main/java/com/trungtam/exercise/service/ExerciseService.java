@@ -39,6 +39,7 @@ public class ExerciseService {
 
     private final ExerciseRepository exerciseRepository;
     private final SubjectRepository subjectRepository;
+    private final com.trungtam.topic.repository.TopicRepository topicRepository;
     private final CodeGeneratorService codeGeneratorService;
 
     public ExercisePageResponse search(ExerciseSearchParams params) {
@@ -107,11 +108,24 @@ public class ExerciseService {
                 .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
     }
 
+    /** Lay chuyen de va dam bao thuoc dung mon hoc cua bai tap. */
+    private com.trungtam.topic.entity.Topic resolveTopic(Long topicId, Subject subject) {
+        if (topicId == null) return null;
+        com.trungtam.topic.entity.Topic topic = topicRepository.findById(topicId)
+                .orElseThrow(() -> new AppException(ErrorCode.TOPIC_NOT_FOUND));
+        if (!topic.getSubject().getId().equals(subject.getId())) {
+            throw new AppException(ErrorCode.TOPIC_SUBJECT_MISMATCH);
+        }
+        return topic;
+    }
+
     private Exercise buildExercise(Exercise exercise, CreateExerciseRequest req, Subject subject, String code) {
         exercise.setCode(code);
         exercise.setTitle(req.title());
         exercise.setSubjectEntity(subject);
+        exercise.setTopic(resolveTopic(req.topicId(), subject));
         exercise.setType(req.type());
+        exercise.setDifficulty(req.difficulty());
         exercise.setStatus(req.status() != null ? req.status() : ExerciseStatus.ACTIVE);
         exercise.setQuestionText(req.questionText());
         exercise.setQuestionImage(req.questionImage());

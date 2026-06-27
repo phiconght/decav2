@@ -6,7 +6,9 @@ import com.trungtam.schoolclass.dto.request.ClassSearchParams;
 import com.trungtam.schoolclass.dto.request.CreateClassRequest;
 import com.trungtam.schoolclass.dto.request.UpdateClassStatusRequest;
 import com.trungtam.schoolclass.dto.response.ClassDetailResponse;
+import com.trungtam.schoolclass.dto.response.ClassListItem;
 import com.trungtam.schoolclass.dto.response.ClassPageResponse;
+import com.trungtam.schoolclass.dto.response.ClassRefItem;
 import com.trungtam.schoolclass.dto.response.StudentOptionResponse;
 import com.trungtam.schoolclass.service.ClassService;
 import jakarta.validation.Valid;
@@ -45,6 +47,14 @@ public class ClassController {
     @PreAuthorize("hasAuthority('CLASS:READ')")
     public ApiResponse<ClassDetailResponse> getById(@PathVariable Long id) {
         return ApiResponse.ok(classService.getById(id));
+    }
+
+    /** Lay thong tin gon cua khoa theo list id (cho dropdown map nhan). */
+    @GetMapping("/by-ids")
+    @PreAuthorize("hasAuthority('CLASS:READ')")
+    public ApiResponse<List<ClassRefItem>> listByIds(
+            @RequestParam(required = false) List<Long> ids) {
+        return ApiResponse.ok(classService.listByIds(ids));
     }
 
     @PostMapping
@@ -110,5 +120,26 @@ public class ClassController {
             @PathVariable Long userId) {
         classService.removeStudent(id, userId);
         return ApiResponse.ok();
+    }
+
+    /** Danh sach lop ma 1 hoc vien dang tham gia. */
+    @GetMapping("/by-student/{userId}")
+    @PreAuthorize("hasAuthority('CLASS:READ')")
+    public ApiResponse<List<ClassListItem>> listByStudent(@PathVariable Long userId) {
+        return ApiResponse.ok(classService.listClassesByStudent(userId));
+    }
+
+    /** Danh sach khoa hoc ma 1 giao vien phu trach. */
+    @GetMapping("/by-teacher/{userId}")
+    @PreAuthorize("hasAuthority('CLASS:READ')")
+    public ApiResponse<List<ClassListItem>> listByTeacher(@PathVariable Long userId) {
+        return ApiResponse.ok(classService.listClassesByTeacher(userId));
+    }
+
+    /** Danh sach lop cua hoc vien DANG DANG NHAP (self-scoped, moi user da auth). */
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<List<ClassListItem>> listMyClasses() {
+        return ApiResponse.ok(classService.listMyClasses());
     }
 }

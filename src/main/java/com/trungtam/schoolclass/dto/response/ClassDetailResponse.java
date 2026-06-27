@@ -5,6 +5,7 @@ import com.trungtam.schoolclass.entity.SchoolClass;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ClassDetailResponse(
@@ -17,6 +18,7 @@ public record ClassDetailResponse(
         LocalDate startDate,
         LocalDate endDate,
         String status,
+        List<StudentOptionResponse> teachers,
         String createdBy,
         String updatedBy,
         Instant createdAt,
@@ -33,6 +35,7 @@ public record ClassDetailResponse(
                 c.getStartDate(),
                 c.getEndDate(),
                 c.getStatus().name(),
+                c.getTeachers().stream().map(StudentOptionResponse::from).toList(),
                 c.getCreatedBy(),
                 c.getUpdatedBy(),
                 c.getCreatedAt(),

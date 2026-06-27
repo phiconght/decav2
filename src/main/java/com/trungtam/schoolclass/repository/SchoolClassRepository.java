@@ -18,4 +18,10 @@ public interface SchoolClassRepository extends JpaRepository<SchoolClass, Long>,
 
     @Query("SELECT DISTINCT u FROM SchoolClass c JOIN c.students u WHERE c.id IN :classIds ORDER BY u.fullName ASC")
     List<User> findStudentsByClassIds(@Param("classIds") List<Long> classIds);
+
+    @Query("SELECT c FROM SchoolClass c JOIN c.students u WHERE u.id = :userId ORDER BY c.createdAt DESC")
+    List<SchoolClass> findClassesByStudentId(@Param("userId") Long userId);
+
+    @Query("SELECT c FROM SchoolClass c JOIN c.teachers t WHERE t.id = :userId ORDER BY c.createdAt DESC")
+    List<SchoolClass> findClassesByTeacherId(@Param("userId") Long userId);
 }

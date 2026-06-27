@@ -1,5 +1,6 @@
 package com.trungtam.exercise.dto.request;
 
+import com.trungtam.exercise.entity.ExerciseDifficulty;
 import com.trungtam.exercise.entity.ExerciseStatus;
 import com.trungtam.exercise.entity.ExerciseType;
 import jakarta.validation.Valid;
@@ -11,7 +12,9 @@ import java.util.List;
 public record CreateExerciseRequest(
         String title,
         @NotNull Long subjectId,
+        Long topicId,
         @NotNull ExerciseType type,
+        @NotNull ExerciseDifficulty difficulty,
         ExerciseStatus status,
         @NotBlank String questionText,
         String questionImage,

@@ -45,8 +45,12 @@ public enum ErrorCode {
     // 404 — Subject
     SUBJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay mon hoc"),
 
+    // 404 — Topic
+    TOPIC_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay chuyen de"),
+    TOPIC_SUBJECT_MISMATCH(HttpStatus.BAD_REQUEST, "Chuyen de khong thuoc mon hoc da chon"),
+
     // 404 — Class
-    CLASS_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay lop hoc"),
+    CLASS_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay khoa hoc"),
 
     // 400 — Class enrollment
     NOT_A_STUDENT(HttpStatus.BAD_REQUEST, "Nguoi dung khong phai hoc sinh"),
@@ -57,6 +61,7 @@ public enum ErrorCode {
     // 400 — Exam validation
     EXAM_INVALID_TIME_RANGE(HttpStatus.BAD_REQUEST, "Thoi diem ket thuc phai sau thoi diem phat de"),
     EXAM_SUPPLEMENTARY_NO_STUDENT(HttpStatus.BAD_REQUEST, "De bo sung phai chon it nhat 1 hoc sinh"),
+    EXAM_STATUS_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "Trang thai khong duoc phep dat thu cong"),
 
     // 400 — File validation
     FILE_EMPTY(HttpStatus.BAD_REQUEST, "File rong"),

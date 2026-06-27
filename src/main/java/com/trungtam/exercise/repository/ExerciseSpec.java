@@ -2,6 +2,7 @@ package com.trungtam.exercise.repository;
 
 import com.trungtam.exercise.dto.request.ExerciseSearchParams;
 import com.trungtam.exercise.entity.Exercise;
+import com.trungtam.exercise.entity.ExerciseDifficulty;
 import com.trungtam.exercise.entity.ExerciseStatus;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -19,6 +20,8 @@ public final class ExerciseSpec {
         return Specification
                 .where(likeCode(p.getCode()))
                 .and(eqSubjectId(p.getSubjectId()))
+                .and(eqTopicId(p.getTopicId()))
+                .and(eqDifficulty(p.getDifficulty()))
                 .and(likeCreatedBy(p.getCreatedBy()))
                 .and(fromDate(p.getCreatedFrom()))
                 .and(toDate(p.getCreatedTo()))
@@ -33,6 +36,22 @@ public final class ExerciseSpec {
     private static Specification<Exercise> eqSubjectId(Long subjectId) {
         return (root, q, cb) -> subjectId == null ? null
                 : cb.equal(root.get("subjectEntity").get("id"), subjectId);
+    }
+
+    private static Specification<Exercise> eqTopicId(Long topicId) {
+        return (root, q, cb) -> topicId == null ? null
+                : cb.equal(root.get("topic").get("id"), topicId);
+    }
+
+    private static Specification<Exercise> eqDifficulty(String difficulty) {
+        return (root, q, cb) -> {
+            if (difficulty == null || difficulty.isBlank()) return null;
+            try {
+                return cb.equal(root.get("difficulty"), ExerciseDifficulty.valueOf(difficulty));
+            } catch (IllegalArgumentException e) {
+                return null;
+            }
+        };
     }
 
     private static Specification<Exercise> likeCreatedBy(String createdBy) {
