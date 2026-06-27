@@ -1,0 +1,130 @@
+package com.trungtam.schedule.repository;
+
+import com.trungtam.schedule.entity.ClassSession;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
+
+public interface ClassSessionRepository
+        extends JpaRepository<ClassSession, Long>, JpaSpecificationExecutor<ClassSession> {
+
+    boolean existsByClazzIdAndSessionDateAndStartTime(Long classId, LocalDate sessionDate, LocalTime startTime);
+
+    List<ClassSession> findByClazzIdAndSessionDateBetween(Long classId, LocalDate from, LocalDate to);
+
+    List<ClassSession> findBySessionDateAndStatus(LocalDate sessionDate,
+                                                  com.trungtam.schedule.entity.SessionStatus status);
+
+    /** Buoi sinh ra tu quy tac, tuong lai, PLANNED, khong phai thu cong (de regenerate khi sua quy tac). */
+    @Query("""
+        SELECT s FROM ClassSession s
+        WHERE s.schedule.id = :scheduleId
+          AND s.sessionDate >= :from
+          AND s.status = com.trungtam.schedule.entity.SessionStatus.PLANNED
+          AND s.isManual = false
+        """)
+    List<ClassSession> findFutureGeneratedBySchedule(@Param("scheduleId") Long scheduleId,
+                                                     @Param("from") LocalDate from);
+
+    /** Buoi PLANNED da qua gio ket thuc tinh den thoi diem mistart (cho CloseSessionJob). */
+    @Query(value = """
+        SELECT * FROM class_sessions s
+        WHERE s.status = 'PLANNED'
+          AND (s.session_date < :today
+               OR (s.session_date = :today
+                   AND (s.start_time + make_interval(mins => s.duration_minutes)) <= CAST(:nowTime AS time)))
+        """, nativeQuery = true)
+    List<ClassSession> findPlannedPastEnd(@Param("today") LocalDate today,
+                                          @Param("nowTime") LocalTime nowTime);
+
+    // ----- TRUNG PHONG: buoi cung phong, cung ngay, giao gio (NATIVE + OVERLAPS) -----
+    @Query(value = """
+        SELECT * FROM class_sessions s
+        WHERE s.room_id = :roomId AND s.session_date = :date AND s.status <> 'CANCELLED'
+          AND (:excludeId IS NULL OR s.id <> :excludeId)
+          AND (s.start_time, s.start_time + make_interval(mins => s.duration_minutes))
+              OVERLAPS
+              (CAST(:startTime AS time), CAST(:startTime AS time) + make_interval(mins => :durationMinutes))
+        """, nativeQuery = true)
+    List<ClassSession> findRoomConflicts(@Param("roomId") Long roomId,
+                                         @Param("date") LocalDate date,
+                                         @Param("startTime") LocalTime startTime,
+                                         @Param("durationMinutes") int durationMinutes,
+                                         @Param("excludeId") Long excludeId);
+
+    // ----- TRUNG GIAO VIEN: y het nhung s.teacher_id = :teacherId -----
+    @Query(value = """
+        SELECT * FROM class_sessions s
+        WHERE s.teacher_id = :teacherId AND s.session_date = :date AND s.status <> 'CANCELLED'
+          AND (:excludeId IS NULL OR s.id <> :excludeId)
+          AND (s.start_time, s.start_time + make_interval(mins => s.duration_minutes))
+              OVERLAPS
+              (CAST(:startTime AS time), CAST(:startTime AS time) + make_interval(mins => :durationMinutes))
+        """, nativeQuery = true)
+    List<ClassSession> findTeacherConflicts(@Param("teacherId") Long teacherId,
+                                            @Param("date") LocalDate date,
+                                            @Param("startTime") LocalTime startTime,
+                                            @Param("durationMinutes") int durationMinutes,
+                                            @Param("excludeId") Long excludeId);
+
+    // ----- TRUNG HOC VIEN (canh bao): HV cua lop nay co buoi lop KHAC cung ngay & giao gio -----
+    // Tra ten lop khac (chi can canh bao, khong chan).
+    @Query(value = """
+        SELECT DISTINCT c.name FROM class_sessions s
+        JOIN class_students cs ON cs.class_id = s.class_id
+        JOIN classes c ON c.id = s.class_id
+        WHERE s.session_date = :date AND s.status <> 'CANCELLED'
+          AND s.class_id <> :classId
+          AND cs.user_id IN (:studentIds)
+          AND (s.start_time, s.start_time + make_interval(mins => s.duration_minutes))
+              OVERLAPS
+              (CAST(:startTime AS time), CAST(:startTime AS time) + make_interval(mins => :durationMinutes))
+        """, nativeQuery = true)
+    List<String> findStudentConflictClassNames(@Param("classId") Long classId,
+                                               @Param("studentIds") List<Long> studentIds,
+                                               @Param("date") LocalDate date,
+                                               @Param("startTime") LocalTime startTime,
+                                               @Param("durationMinutes") int durationMinutes);
+
+    // ----- TIMETABLE: HV — buoi cua cac lop HV ghi danh, loc tu enrolled_at -----
+    @Query(value = """
+        SELECT s.* FROM class_sessions s
+        JOIN class_students cs ON cs.class_id = s.class_id
+        WHERE cs.user_id = :userId
+          AND s.session_date BETWEEN :from AND :to
+          AND (cs.enrolled_at IS NULL OR s.session_date >= cs.enrolled_at)
+        ORDER BY s.session_date, s.start_time
+        """, nativeQuery = true)
+    List<ClassSession> findTimetableForStudent(@Param("userId") Long userId,
+                                               @Param("from") LocalDate from,
+                                               @Param("to") LocalDate to);
+
+    // ----- TIMETABLE: GV — buoi gan truc tiep cho GV, HOAC lop GV phu trach khi session.teacher null -----
+    @Query("""
+        SELECT s FROM ClassSession s
+        WHERE s.sessionDate BETWEEN :from AND :to
+          AND (s.teacher.id = :userId
+               OR (s.teacher IS NULL
+                   AND EXISTS (SELECT 1 FROM SchoolClass c JOIN c.teachers t
+                               WHERE c.id = s.clazz.id AND t.id = :userId)))
+        ORDER BY s.sessionDate, s.startTime
+        """)
+    List<ClassSession> findTimetableForTeacher(@Param("userId") Long userId,
+                                               @Param("from") LocalDate from,
+                                               @Param("to") LocalDate to);
+
+    // ----- TIMETABLE: PHONG -----
+    @Query("""
+        SELECT s FROM ClassSession s
+        WHERE s.room.id = :roomId AND s.sessionDate BETWEEN :from AND :to
+        ORDER BY s.sessionDate, s.startTime
+        """)
+    List<ClassSession> findTimetableForRoom(@Param("roomId") Long roomId,
+                                            @Param("from") LocalDate from,
+                                            @Param("to") LocalDate to);
+}

@@ -54,6 +54,39 @@ app:
       enabled: ${APP_EXAM_BACKFILL_ENABLED:true}
       fixed-delay: ${APP_EXAM_BACKFILL_FIXED_DELAY:60000}     # ms, mac dinh 60s
       initial-delay: ${APP_EXAM_BACKFILL_INITIAL_DELAY:30000} # ms, cho app khoi dong
+    schedule-gen:
+      # Sinh/mo rong buoi hoc tu quy tac lich (idempotent)
+      enabled: ${APP_SCHEDULE_GEN_ENABLED:true}
+      cron: "0 0 1 * * *"        # 01:00 hang ngay
+      horizon-weeks: 8
+    attendance-act:
+      # Tao session_attendance cho buoi trong ngay tu roster + ap nghi phep
+      enabled: ${APP_ATTENDANCE_ACT_ENABLED:true}
+      cron: "0 5 0 * * *"        # 00:05 hang ngay
+    close-session:
+      # Buoi PLANNED da qua gio ket thuc -> DONE
+      enabled: ${APP_CLOSE_SESSION_ENABLED:true}
+      cron: "0 30 23 * * *"      # 23:30 hang ngay
+    missing-scan:
+      # Quet thieu check-in/check-out buoi PLANNED hom nay -> bao phu huynh
+      enabled: ${APP_MISSING_SCAN_ENABLED:true}
+      fixed-delay: ${APP_MISSING_SCAN_FIXED_DELAY:300000}   # ms, mac dinh 5 phut
+      grace-minutes: 15          # tre qua start+grace -> TRE (ScheduleService.checkin) / qua han check
+    session-remind:
+      # Nhac HV + PH khi buoi PLANNED sap bat dau
+      enabled: ${APP_SESSION_REMIND_ENABLED:true}
+      fixed-delay: ${APP_SESSION_REMIND_FIXED_DELAY:300000} # ms, mac dinh 5 phut
+      remind-before-minutes: ${APP_SESSION_REMIND_BEFORE:60} # phut truoc gio bat dau
+    notify-worker:
+      # Gui outbox thong bao PENDING qua PushSender (hien LogPushSender stub)
+      enabled: ${APP_NOTIFY_WORKER_ENABLED:true}
+      fixed-delay: ${APP_NOTIFY_WORKER_FIXED_DELAY:60000}   # ms, mac dinh 60s
+      max-retry: ${APP_NOTIFY_WORKER_MAX_RETRY:5}
+  qr:
+    period-seconds: 30
+    secret: ${APP_QR_SECRET:dev-qr-secret-change-me-to-a-long-random-value}
+  schedule:
+    timezone: "Asia/Ho_Chi_Minh"
 
 springdoc:
   swagger-ui:

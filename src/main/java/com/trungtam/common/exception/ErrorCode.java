@@ -63,6 +63,30 @@ public enum ErrorCode {
     EXAM_SUPPLEMENTARY_NO_STUDENT(HttpStatus.BAD_REQUEST, "De bo sung phai chon it nhat 1 hoc sinh"),
     EXAM_STATUS_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "Trang thai khong duoc phep dat thu cong"),
 
+    // 404/409 — Room (co so / phong / ngay nghi)
+    BRANCH_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay co so"),
+    ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay phong hoc"),
+    HOLIDAY_DUPLICATED(HttpStatus.CONFLICT, "Ngay nghi da ton tai cho co so nay"),
+
+    // 400 — Guardian / Teacher
+    NOT_A_PARENT(HttpStatus.BAD_REQUEST, "Nguoi dung khong phai phu huynh"),
+    NOT_A_TEACHER(HttpStatus.BAD_REQUEST, "Nguoi dung khong phai giao vien"),
+
+    // 404/400/409 — Schedule (lich hoc / buoi hoc / diem danh)
+    SCHEDULE_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay quy tac lich"),
+    SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay buoi hoc"),
+    WEEKLY_REQUIRES_DAY(HttpStatus.BAD_REQUEST, "Lich tuan phai chon thu trong tuan"),
+    SESSION_TIME_INVALID(HttpStatus.BAD_REQUEST, "Gio bat dau cong thoi luong phai trong ngay (<= 24:00)"),
+    ROOM_TIME_CONFLICT(HttpStatus.CONFLICT, "Phong da co buoi hoc trung gio"),
+    TEACHER_TIME_CONFLICT(HttpStatus.CONFLICT, "Giao vien da co buoi hoc trung gio"),
+    QR_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "Ma QR khong hop le hoac da het han"),
+    NOT_IN_ROSTER(HttpStatus.FORBIDDEN, "Hoc vien khong thuoc buoi hoc"),
+
+    // 404/400 — Leave (nghi phep)
+    LEAVE_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay don nghi phep"),
+    LEAVE_ALREADY_REVIEWED(HttpStatus.BAD_REQUEST, "Don nghi phep da duoc xu ly"),
+    LEAVE_INVALID_RANGE(HttpStatus.BAD_REQUEST, "Pham vi xin nghi khong hop le"),
+
     // 400 — File validation
     FILE_EMPTY(HttpStatus.BAD_REQUEST, "File rong"),
     UNSUPPORTED_FILE_TYPE(HttpStatus.BAD_REQUEST, "Dinh dang file khong ho tro"),

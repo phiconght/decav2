@@ -155,6 +155,8 @@ public class ClassService {
             schoolClass.getStudents().add(user);
         }
         classRepository.save(schoolClass);
+        // Ghi ngay ghi danh cho cac cap moi (class_students la @ManyToMany -> native update, phuong an A)
+        classRepository.markEnrolledAt(classId, req.studentIds());
         // Hoc vien vao khoa sau khi de da phat hanh: tao truoc dong exam_student
         materializeNewMembersExams(classId, req.studentIds());
     }

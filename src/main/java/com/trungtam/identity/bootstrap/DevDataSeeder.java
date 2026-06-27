@@ -59,7 +59,12 @@ public class DevDataSeeder implements ApplicationRunner {
                 permission("EXAM:DELETE",    "EXAM",     "DELETE", "Xoa de thi"),
                 permission("FILE:READ",      "FILE",     "READ",   "Xem / liet ke file"),
                 permission("FILE:WRITE",     "FILE",     "WRITE",  "Tai len file"),
-                permission("FILE:DELETE",    "FILE",     "DELETE", "Xoa file")
+                permission("FILE:DELETE",    "FILE",     "DELETE", "Xoa file"),
+                permission("ROOM:READ",      "ROOM",     "READ",   "Xem co so / phong hoc"),
+                permission("ROOM:WRITE",     "ROOM",     "WRITE",  "Tao / sua co so / phong hoc"),
+                permission("LEAVE:READ",     "LEAVE",    "READ",   "Xem don nghi phep"),
+                permission("LEAVE:WRITE",    "LEAVE",    "WRITE",  "Tao don nghi phep"),
+                permission("LEAVE:APPROVE",  "LEAVE",    "APPROVE", "Duyet don nghi phep")
         );
         permissionRepository.saveAll(permissions);
 
