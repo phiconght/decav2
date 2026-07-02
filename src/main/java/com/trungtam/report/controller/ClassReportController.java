@@ -5,6 +5,7 @@ import com.trungtam.report.dto.response.BreakdownResponse;
 import com.trungtam.report.dto.response.ClassAttendanceReport;
 import com.trungtam.report.dto.response.ClassExamAverageItem;
 import com.trungtam.report.dto.response.ClassStudentAverageItem;
+import com.trungtam.report.dto.response.ExamScoreDistribution;
 import com.trungtam.report.dto.response.TopicMasteryItem;
 import com.trungtam.report.service.ClassReportService;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -37,8 +39,18 @@ public class ClassReportController {
 
     @GetMapping("/{classId}/breakdowns")
     @PreAuthorize(CAN_ACCESS)
-    public ApiResponse<BreakdownResponse> breakdowns(@PathVariable Long classId) {
-        return ApiResponse.ok(classReportService.breakdowns(classId));
+    public ApiResponse<BreakdownResponse> breakdowns(
+            @PathVariable Long classId,
+            @RequestParam(required = false) Long topicId) {
+        return ApiResponse.ok(classReportService.breakdowns(classId, topicId));
+    }
+
+    @GetMapping("/{classId}/exams/{examId}/score-distribution")
+    @PreAuthorize(CAN_ACCESS)
+    public ApiResponse<ExamScoreDistribution> scoreDistribution(
+            @PathVariable Long classId,
+            @PathVariable Long examId) {
+        return ApiResponse.ok(classReportService.scoreDistribution(classId, examId));
     }
 
     @GetMapping("/{classId}/topic-mastery")

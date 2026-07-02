@@ -20,6 +20,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
@@ -73,6 +74,14 @@ public class ClassSession extends BaseEntity {
 
     @Column(name = "is_manual", nullable = false)
     private boolean isManual = false;
+
+    /** Gia buoi (snapshot tu classes.price_per_session luc sinh buoi) — SPEC_ThanhToan §0.2#2. */
+    @Column(name = "price", nullable = false, precision = 12, scale = 0)
+    private BigDecimal price = BigDecimal.ZERO;
+
+    /** true = admin da chinh gia buoi bang tay -> doi gia khoa se bo qua buoi nay. */
+    @Column(name = "price_overridden", nullable = false)
+    private boolean priceOverridden = false;
 
     /** Gio ket thuc = gio bat dau + thoi luong. */
     public LocalTime endTime() {

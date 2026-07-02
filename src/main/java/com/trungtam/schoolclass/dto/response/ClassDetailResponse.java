@@ -3,6 +3,7 @@ package com.trungtam.schoolclass.dto.response;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.trungtam.schoolclass.entity.SchoolClass;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -18,6 +19,7 @@ public record ClassDetailResponse(
         LocalDate startDate,
         LocalDate endDate,
         String status,
+        BigDecimal pricePerSession,
         List<StudentOptionResponse> teachers,
         String createdBy,
         String updatedBy,
@@ -35,6 +37,7 @@ public record ClassDetailResponse(
                 c.getStartDate(),
                 c.getEndDate(),
                 c.getStatus().name(),
+                c.getPricePerSession(),
                 c.getTeachers().stream().map(StudentOptionResponse::from).toList(),
                 c.getCreatedBy(),
                 c.getUpdatedBy(),

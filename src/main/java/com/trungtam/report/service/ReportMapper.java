@@ -4,13 +4,17 @@ import com.trungtam.report.dto.response.AttendanceMonthPoint;
 import com.trungtam.report.dto.response.AttendanceSummary;
 import com.trungtam.report.dto.response.BreakdownResponse;
 import com.trungtam.report.dto.response.BucketStat;
+import com.trungtam.report.dto.response.ExamScoreDistribution;
 import com.trungtam.report.dto.response.RecentExamItem;
+import com.trungtam.report.dto.response.ScoreBand;
 import com.trungtam.report.dto.response.ScoreTrendPoint;
 import com.trungtam.report.dto.response.TopicMasteryItem;
 import com.trungtam.report.repository.ReportAggregationRepository.AttendanceMonthProjection;
 import com.trungtam.report.repository.ReportAggregationRepository.AttendanceProjection;
 import com.trungtam.report.repository.ReportAggregationRepository.BreakdownProjection;
 import com.trungtam.report.repository.ReportAggregationRepository.RecentExamProjection;
+import com.trungtam.report.repository.ReportAggregationRepository.ScoreBandProjection;
+import com.trungtam.report.repository.ReportAggregationRepository.ScoreStatsProjection;
 import com.trungtam.report.repository.ReportAggregationRepository.ScoreTrendProjection;
 import com.trungtam.report.repository.ReportAggregationRepository.TopicMasteryProjection;
 
@@ -112,5 +116,52 @@ final class ReportMapper {
 
     static BigDecimal scale(BigDecimal v) {
         return v == null ? null : v.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Dung ExamScoreDistribution (§12) tu ket qua query. maxScore <= 0 -> pho diem rong.
+     * studentBandIndex khop width_bucket + LEAST clamp; percentile = leCount/submitted*100.
+     */
+    static ExamScoreDistribution distribution(Long examId, String examName, BigDecimal maxScore,
+                                              int bandCount, List<ScoreBandProjection> bandRows,
+                                              ScoreStatsProjection stats, Integer classSize,
+                                              Integer rank) {
+        BigDecimal max = maxScore == null ? BigDecimal.ZERO : maxScore;
+        BigDecimal studentScore = stats == null ? null : stats.getStudentScore();
+
+        Integer studentBandIndex = null;
+        if (studentScore != null && max.signum() > 0) {
+            int raw = (int) Math.floor(studentScore.doubleValue() / max.doubleValue() * bandCount) + 1;
+            studentBandIndex = Math.min(Math.max(raw, 1), bandCount);
+        }
+        final Integer sbi = studentBandIndex;
+
+        List<ScoreBand> bands = bandRows.stream().map(b -> {
+            int i = b.getIndex();
+            BigDecimal from = max.multiply(BigDecimal.valueOf(i - 1L))
+                    .divide(BigDecimal.valueOf(bandCount), 2, RoundingMode.HALF_UP);
+            BigDecimal to = max.multiply(BigDecimal.valueOf(i))
+                    .divide(BigDecimal.valueOf(bandCount), 2, RoundingMode.HALF_UP);
+            return new ScoreBand(i, from, to, nz(b.getCount()), sbi != null && sbi == i);
+        }).toList();
+
+        long submitted = stats == null ? 0 : nz(stats.getSubmittedCount());
+        Double percentile = null;
+        if (studentScore != null && submitted > 0) {
+            percentile = BigDecimal.valueOf(nz(stats.getLeCount()) * 100.0 / submitted)
+                    .setScale(1, RoundingMode.HALF_UP).doubleValue();
+        }
+        BigDecimal median = stats == null || stats.getMedian() == null
+                ? null
+                : BigDecimal.valueOf(stats.getMedian()).setScale(2, RoundingMode.HALF_UP);
+
+        return new ExamScoreDistribution(
+                examId, examName, max, bandCount, bands,
+                studentScore, sbi, percentile,
+                stats == null ? null : scale(stats.getAvgScore()),
+                median,
+                stats == null ? null : stats.getHighest(),
+                stats == null ? null : stats.getLowest(),
+                rank, (int) submitted, classSize);
     }
 }

@@ -3,7 +3,9 @@ package com.trungtam.schoolclass.dto.request;
 import com.trungtam.schoolclass.entity.ClassStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -13,5 +15,7 @@ public record CreateClassRequest(
         LocalDate startDate,
         LocalDate endDate,
         ClassStatus status,
-        List<Long> teacherIds
+        List<Long> teacherIds,
+        /** Don gia moi buoi (VND). Null -> giu 0 (SPEC_ThanhToan §0.2#1). */
+        @PositiveOrZero BigDecimal pricePerSession
 ) {}

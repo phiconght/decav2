@@ -114,6 +114,8 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
 
     // ============ BREAKDOWN DUNG/SAI ============
 
+    // Breakdown theo CHUONG (topicId nullable = toan khoa). §11: nang luc tinh tren
+    // MOI cau thuoc chuong tu MOI bai DA_LAM cua HV trong lop (khong theo 1 bai thi).
     @Query(value = """
             SELECT ex.difficulty AS bucketKey,
                    COUNT(*) FILTER (WHERE r.correct IS TRUE)  AS correctCount,
@@ -126,12 +128,12 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
             JOIN exam_exercises ee ON ee.id = r.exam_exercise_id
             JOIN exercises ex      ON ex.id = ee.exercise_id
             WHERE (CAST(:studentId AS BIGINT) IS NULL OR es.user_id = :studentId)
-              AND (CAST(:examId AS BIGINT) IS NULL OR es.exam_id = :examId)
+              AND (CAST(:topicId AS BIGINT) IS NULL OR ex.topic_id = :topicId)
             GROUP BY ex.difficulty
             """, nativeQuery = true)
     List<BreakdownProjection> difficultyBreakdown(@Param("studentId") Long studentId,
                                                   @Param("classId") Long classId,
-                                                  @Param("examId") Long examId);
+                                                  @Param("topicId") Long topicId);
 
     @Query(value = """
             SELECT ex.type AS bucketKey,
@@ -145,12 +147,66 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
             JOIN exam_exercises ee ON ee.id = r.exam_exercise_id
             JOIN exercises ex      ON ex.id = ee.exercise_id
             WHERE (CAST(:studentId AS BIGINT) IS NULL OR es.user_id = :studentId)
-              AND (CAST(:examId AS BIGINT) IS NULL OR es.exam_id = :examId)
+              AND (CAST(:topicId AS BIGINT) IS NULL OR ex.topic_id = :topicId)
             GROUP BY ex.type
             """, nativeQuery = true)
     List<BreakdownProjection> typeBreakdown(@Param("studentId") Long studentId,
                                             @Param("classId") Long classId,
-                                            @Param("examId") Long examId);
+                                            @Param("topicId") Long topicId);
+
+    // ============ PHO DIEM (§12) ============
+
+    /** Diem toi da cua 1 de = tong diem tung cau (TF co bang diem tung y -> tong y). */
+    @Query(value = """
+            SELECT COALESCE(SUM(CASE
+                   WHEN EXISTS (SELECT 1 FROM exam_tf_item_scores ts WHERE ts.exam_exercise_id = ee.id)
+                   THEN (SELECT COALESCE(SUM(ts.points),0) FROM exam_tf_item_scores ts WHERE ts.exam_exercise_id = ee.id)
+                   ELSE COALESCE(ee.points,0) END),0)
+            FROM exam_exercises ee WHERE ee.exam_id = :examId
+            """, nativeQuery = true)
+    java.math.BigDecimal examMaxScore(@Param("examId") Long examId);
+
+    /** Histogram: chia [0..maxScore] thanh :bandCount khoang deu; dem HV DA_LAM moi khoang. */
+    @Query(value = """
+            SELECT b.idx AS index, COALESCE(cnt.c, 0) AS count
+            FROM generate_series(1, :bandCount) AS b(idx)
+            LEFT JOIN (
+                SELECT LEAST(width_bucket(es.score, 0, :maxScore, :bandCount), :bandCount) AS bkt,
+                       COUNT(*) AS c
+                FROM exam_student es
+                JOIN class_students cs ON cs.user_id = es.user_id AND cs.class_id = :classId
+                WHERE es.exam_id = :examId AND es.status = 'DA_LAM' AND es.score IS NOT NULL
+                GROUP BY 1
+            ) cnt ON cnt.bkt = b.idx
+            ORDER BY b.idx
+            """, nativeQuery = true)
+    List<ScoreBandProjection> scoreDistribution(@Param("examId") Long examId,
+                                                @Param("classId") Long classId,
+                                                @Param("maxScore") java.math.BigDecimal maxScore,
+                                                @Param("bandCount") int bandCount);
+
+    /** Thong ke pho diem + vi tri HV (studentId nullable -> studentScore/leCount = null). */
+    @Query(value = """
+            SELECT AVG(es.score) AS avgScore,
+                   percentile_cont(0.5) WITHIN GROUP (ORDER BY es.score) AS median,
+                   MAX(es.score) AS highest, MIN(es.score) AS lowest,
+                   COUNT(*) AS submittedCount,
+                   (SELECT es2.score FROM exam_student es2
+                      JOIN class_students cs2 ON cs2.user_id = es2.user_id AND cs2.class_id = :classId
+                      WHERE es2.exam_id = :examId AND es2.status = 'DA_LAM'
+                        AND es2.user_id = :studentId) AS studentScore,
+                   COUNT(*) FILTER (WHERE CAST(:studentId AS BIGINT) IS NOT NULL AND es.score <=
+                      (SELECT es3.score FROM exam_student es3
+                         JOIN class_students cs3 ON cs3.user_id = es3.user_id AND cs3.class_id = :classId
+                         WHERE es3.exam_id = :examId AND es3.status = 'DA_LAM'
+                           AND es3.user_id = :studentId)) AS leCount
+            FROM exam_student es
+            JOIN class_students cs ON cs.user_id = es.user_id AND cs.class_id = :classId
+            WHERE es.exam_id = :examId AND es.status = 'DA_LAM' AND es.score IS NOT NULL
+            """, nativeQuery = true)
+    ScoreStatsProjection scoreStats(@Param("examId") Long examId,
+                                    @Param("classId") Long classId,
+                                    @Param("studentId") Long studentId);
 
     // ============ NAM CHAC THEO CHUONG ============
 
@@ -361,5 +417,20 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
         Long getTotal();
         Long getCoMat();
         Long getTre();
+    }
+
+    interface ScoreBandProjection {
+        Integer getIndex();
+        Long getCount();
+    }
+
+    interface ScoreStatsProjection {
+        BigDecimal getAvgScore();
+        Double getMedian();
+        BigDecimal getHighest();
+        BigDecimal getLowest();
+        Long getSubmittedCount();
+        BigDecimal getStudentScore();
+        Long getLeCount();
     }
 }

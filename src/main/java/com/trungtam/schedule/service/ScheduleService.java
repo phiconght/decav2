@@ -249,6 +249,9 @@ public class ScheduleService {
                 s.setTeacher(rule.getTeacher());
                 s.setStatus(SessionStatus.PLANNED);
                 s.setManual(false);
+                // Gia buoi = gia khoa hien hanh (SPEC_ThanhToan §0.2#2/#13)
+                s.setPrice(rule.getClazz().getPricePerSession());
+                s.setPriceOverridden(false);
                 sessionRepository.save(s);
             }
         }
@@ -370,6 +373,9 @@ public class ScheduleService {
         s.setTeacher(teacher);
         s.setStatus(SessionStatus.PLANNED);
         s.setManual(true);
+        // Gia buoi = gia khoa hien hanh (SPEC_ThanhToan §0.2#2/#13)
+        s.setPrice(clazz.getPricePerSession());
+        s.setPriceOverridden(false);
         sessionRepository.save(s);
         return SessionDetail.from(s);
     }

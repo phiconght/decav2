@@ -4,13 +4,19 @@ import com.trungtam.report.dto.response.BreakdownResponse;
 import com.trungtam.report.dto.response.ClassAttendanceReport;
 import com.trungtam.report.dto.response.ClassExamAverageItem;
 import com.trungtam.report.dto.response.ClassStudentAverageItem;
+import com.trungtam.report.dto.response.ExamScoreDistribution;
 import com.trungtam.report.dto.response.TopicMasteryItem;
+import com.trungtam.exam.repository.ExamRepository;
 import com.trungtam.report.repository.ReportAggregationRepository;
 import com.trungtam.report.repository.ReportAggregationRepository.AttendanceRateProjection;
+import com.trungtam.report.repository.ReportAggregationRepository.ScoreBandProjection;
+import com.trungtam.report.repository.ReportAggregationRepository.ScoreStatsProjection;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -21,6 +27,10 @@ import java.util.stream.Collectors;
 public class ClassReportService {
 
     private final ReportAggregationRepository aggregationRepository;
+    private final ExamRepository examRepository;
+
+    @Value("${app.report.score-band-count:10}")
+    private int bandCount;
 
     public List<ClassExamAverageItem> examAverages(Long classId) {
         return aggregationRepository.examAveragesForClass(classId).stream()
@@ -31,10 +41,23 @@ public class ClassReportService {
                 .toList();
     }
 
-    public BreakdownResponse breakdowns(Long classId) {
+    /** Breakdown ca lop theo chuong (topicId nullable = toan khoa). §11. */
+    public BreakdownResponse breakdowns(Long classId, Long topicId) {
         return ReportMapper.breakdown(
-                aggregationRepository.difficultyBreakdown(null, classId, null),
-                aggregationRepository.typeBreakdown(null, classId, null));
+                aggregationRepository.difficultyBreakdown(null, classId, topicId),
+                aggregationRepository.typeBreakdown(null, classId, topicId));
+    }
+
+    /** Pho diem 1 bai thi cua ca lop (§12.1) — khong danh dau HV. */
+    public ExamScoreDistribution scoreDistribution(Long classId, Long examId) {
+        BigDecimal maxScore = aggregationRepository.examMaxScore(examId);
+        String examName = examRepository.findById(examId).map(e -> e.getName()).orElse(null);
+        List<ScoreBandProjection> bands = maxScore != null && maxScore.signum() > 0
+                ? aggregationRepository.scoreDistribution(examId, classId, maxScore, bandCount)
+                : List.of();
+        ScoreStatsProjection stats = aggregationRepository.scoreStats(examId, classId, null);
+        return ReportMapper.distribution(examId, examName, maxScore, bandCount, bands,
+                stats, null, null);
     }
 
     public List<TopicMasteryItem> topicMastery(Long classId) {

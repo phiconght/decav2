@@ -3,9 +3,11 @@ package com.trungtam.schedule.repository;
 import com.trungtam.schedule.entity.ClassSession;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -16,6 +18,44 @@ public interface ClassSessionRepository
     boolean existsByClazzIdAndSessionDateAndStartTime(Long classId, LocalDate sessionDate, LocalTime startTime);
 
     List<ClassSession> findByClazzIdAndSessionDateBetween(Long classId, LocalDate from, LocalDate to);
+
+    // ===== HOC PHI (SPEC_ThanhToan) =====
+
+    /**
+     * Cap nhat gia buoi cho cac buoi CHUA BAT DAU (PLANNED, session_date+start_time > now)
+     * VA chua bi chinh tay (price_overridden = false) cua 1 lop. Tra so buoi da doi.
+     * Native de dung phep cong time cua Postgres (make_interval theo phut).
+     */
+    @Modifying(clearAutomatically = true)
+    @Query(value = """
+        UPDATE class_sessions
+        SET price = :price
+        WHERE class_id = :classId
+          AND status = 'PLANNED'
+          AND price_overridden = FALSE
+          AND (session_date + start_time) > CAST(:now AS timestamp)
+        """, nativeQuery = true)
+    int bulkUpdateFuturePrice(@Param("classId") Long classId,
+                              @Param("price") BigDecimal price,
+                              @Param("now") java.time.LocalDateTime now);
+
+    /**
+     * Buoi tinh phi cua 1 HV trong ky (SPEC_ThanhToan §2.4): buoi DONE trong khoang ngay,
+     * TRU buoi HV nghi CO_PHEP. Tra ve theo thu tu ngay tang dan.
+     */
+    @Query(value = """
+        SELECT s.* FROM class_sessions s
+        WHERE s.class_id = :classId AND s.status = 'DONE'
+          AND s.session_date BETWEEN :from AND :to
+          AND NOT EXISTS (SELECT 1 FROM session_attendance sa
+                          WHERE sa.session_id = s.id AND sa.user_id = :studentId
+                            AND sa.status = 'CO_PHEP')
+        ORDER BY s.session_date, s.start_time
+        """, nativeQuery = true)
+    List<ClassSession> findFeeSessions(@Param("classId") Long classId,
+                                       @Param("studentId") Long studentId,
+                                       @Param("from") LocalDate from,
+                                       @Param("to") LocalDate to);
 
     List<ClassSession> findBySessionDateAndStatus(LocalDate sessionDate,
                                                   com.trungtam.schedule.entity.SessionStatus status);

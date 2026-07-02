@@ -83,6 +83,9 @@ public class ClassService {
         schoolClass.setStartDate(req.startDate());
         schoolClass.setEndDate(req.endDate());
         schoolClass.setStatus(req.status() != null ? req.status() : ClassStatus.ACTIVE);
+        if (req.pricePerSession() != null) {
+            schoolClass.setPricePerSession(req.pricePerSession());
+        }
         schoolClass.getTeachers().addAll(resolveTeachers(req.teacherIds()));
         return ClassDetailResponse.from(classRepository.save(schoolClass));
     }
@@ -97,6 +100,9 @@ public class ClassService {
         schoolClass.setEndDate(req.endDate());
         if (req.status() != null) {
             schoolClass.setStatus(req.status());
+        }
+        if (req.pricePerSession() != null) {
+            schoolClass.setPricePerSession(req.pricePerSession());
         }
         // Ghi đè giáo viên: xóa + flush NGAY rồi thêm mới
         // (tránh đụng PK class_teachers khi Hibernate insert trước delete)

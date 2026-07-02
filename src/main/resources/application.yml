@@ -92,6 +92,16 @@ app:
     secret: ${APP_QR_SECRET:dev-qr-secret-change-me-to-a-long-random-value}
   schedule:
     timezone: "Asia/Ho_Chi_Minh"
+  report:
+    score-band-count: 10          # so khoang chia pho diem (§12)
+  practice:                        # Giao bai luyen tap (§10)
+    num-questions: 10
+    duration-minutes: 30
+    deadline-days: 7
+    weak-threshold: 0.6
+    min-sample: 3
+    max-pending: 3
+    max-per-day: 1
 
 springdoc:
   swagger-ui:

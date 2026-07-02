@@ -53,6 +53,7 @@ public class ExamTakingService {
     private final ExamStudentRepository examStudentRepository;
     private final UserRepository userRepository;
     private final ExamGradingService gradingService;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public ExamPaperResponse getPaper(Long examId) {
@@ -121,6 +122,8 @@ public class ExamTakingService {
         // Luu ket qua tung cau (snapshot) phuc vu bao cao. Can id -> flush truoc.
         examStudentRepository.saveAndFlush(es);
         gradingService.persistResults(es, result);
+        // Bao cho module report (de luyen tap §10) — listener chay AFTER_COMMIT.
+        eventPublisher.publishEvent(new com.trungtam.exam.event.ExamSubmittedEvent(es.getId()));
         return result;
     }
 

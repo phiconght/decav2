@@ -109,6 +109,23 @@ public enum ErrorCode {
     STUDENT_NOT_IN_CLASS(HttpStatus.BAD_REQUEST, "Hoc vien khong thuoc khoa hoc"),
     EXAM_NOT_IN_CLASS(HttpStatus.BAD_REQUEST, "De thi khong thuoc khoa hoc"),
 
+    // 400 — Giao bai luyen tap (practice — SPEC_BaoCao §10)
+    PRACTICE_BANK_INSUFFICIENT(HttpStatus.BAD_REQUEST, "Kho bai tap khong du de sinh de luyen tap"),
+    PRACTICE_LIMIT_REACHED(HttpStatus.BAD_REQUEST, "Da dat gioi han giao bai (con de chua lam hoac da giao hom nay)"),
+
+    // 404/409/400 — Hoc phi (payment — SPEC_ThanhToan)
+    PAYMENT_SETTINGS_MISSING(HttpStatus.CONFLICT, "Chua cau hinh tai khoan nhan tien"),
+    INVOICE_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay dot thu hoc phi"),
+    INVOICE_STATUS_INVALID(HttpStatus.BAD_REQUEST, "Trang thai dot thu khong hop le cho thao tac nay"),
+    INVOICE_DUPLICATE_PERIOD(HttpStatus.CONFLICT, "Hoc vien da co dot thu trong ky nay"),
+    SESSION_ALREADY_STARTED(HttpStatus.BAD_REQUEST, "Buoi hoc da bat dau/ket thuc, khong sua gia duoc"),
+    INVALID_DISCOUNT(HttpStatus.BAD_REQUEST, "Muc giam gia phai tu 0 den 100"),
+
+    // 400 — Xu hoc vien (coin — SPEC_ThanhToan §10)
+    COIN_AMOUNT_INVALID(HttpStatus.BAD_REQUEST, "So Xu dieu chinh phai khac 0"),
+    COIN_BALANCE_INSUFFICIENT(HttpStatus.BAD_REQUEST, "So du Xu khong du de tru"),
+    COIN_USER_NOT_STUDENT(HttpStatus.BAD_REQUEST, "Chi hoc vien moi co vi Xu"),
+
     // 400 — File validation
     FILE_EMPTY(HttpStatus.BAD_REQUEST, "File rong"),
     UNSUPPORTED_FILE_TYPE(HttpStatus.BAD_REQUEST, "Dinh dang file khong ho tro"),

@@ -20,6 +20,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
@@ -54,6 +55,10 @@ public class SchoolClass extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private ClassStatus status = ClassStatus.ACTIVE;
+
+    /** Don gia moi buoi (VND nguyen). Auto fill xuong tung buoi khi sinh buoi (SPEC_ThanhToan §0.2#1). */
+    @Column(name = "price_per_session", nullable = false, precision = 12, scale = 0)
+    private BigDecimal pricePerSession = BigDecimal.ZERO;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(name = "class_students",
