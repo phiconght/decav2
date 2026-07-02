@@ -65,7 +65,7 @@ public class NotificationService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Optional<Long> enqueue(Long recipientId, NotificationType type, String title,
                                   String body, String payload, String dedupeKey) {
-        return enqueueInternal(recipientId, type, title, body, payload, dedupeKey, null, null);
+        return enqueueInternal(null, recipientId, type, title, body, payload, dedupeKey, null, null);
     }
 
     /**
@@ -79,17 +79,30 @@ public class NotificationService {
     public Optional<Long> notify(Long recipientId, NotificationType type, String shortTitle,
                                  String shortBody, String fullTitle, String fullContent,
                                  String payload, String dedupeKey) {
-        return enqueueInternal(recipientId, type, shortTitle, shortBody, payload, dedupeKey,
+        return enqueueInternal(null, recipientId, type, shortTitle, shortBody, payload, dedupeKey,
                 fullTitle, fullContent);
     }
 
     /**
-     * Loi chung cho enqueue/notify. fullContent != null -> tao them Message va lien ket.
-     * Chay trong giao dich REQUIRES_NEW da duoc mo boi enqueue()/notify().
+     * Nhu {@link #notify} nhung ghi nguoi gui (vd admin soan thong bao) vao Message.
+     * senderId duoc gan qua proxy (getReferenceById) -> khong query them khi fan-out lon.
      */
-    private Optional<Long> enqueueInternal(Long recipientId, NotificationType type, String title,
-                                           String body, String payload, String dedupeKey,
-                                           String fullTitle, String fullContent) {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Optional<Long> notifyFrom(Long senderId, Long recipientId, NotificationType type,
+                                     String shortTitle, String shortBody, String fullTitle,
+                                     String fullContent, String payload, String dedupeKey) {
+        return enqueueInternal(senderId, recipientId, type, shortTitle, shortBody, payload,
+                dedupeKey, fullTitle, fullContent);
+    }
+
+    /**
+     * Loi chung cho enqueue/notify. fullContent != null -> tao them Message va lien ket.
+     * senderId != null -> gan nguoi gui cho Message.
+     * Chay trong giao dich REQUIRES_NEW da duoc mo boi enqueue()/notify()/notifyFrom().
+     */
+    private Optional<Long> enqueueInternal(Long senderId, Long recipientId, NotificationType type,
+                                           String title, String body, String payload,
+                                           String dedupeKey, String fullTitle, String fullContent) {
         if (recipientId == null || type == null) {
             return Optional.empty();
         }
@@ -108,6 +121,9 @@ public class NotificationService {
         if (StringUtils.hasText(fullContent)) {
             message = new Message();
             message.setRecipient(recipient);
+            if (senderId != null) {
+                message.setSender(userRepository.getReferenceById(senderId));
+            }
             message.setType(type);
             message.setTitle(StringUtils.hasText(fullTitle) ? fullTitle : title);
             message.setContent(fullContent);

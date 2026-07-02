@@ -94,6 +94,10 @@ public enum ErrorCode {
     TEACHER_ALREADY_CHECKED_IN(HttpStatus.BAD_REQUEST, "Buoi nay da cham cong vao"),
     TEACHER_NOT_CHECKED_IN(HttpStatus.BAD_REQUEST, "Chua cham cong vao, khong the cham cong ra"),
 
+    // 404/400 — Post / Announcement (content)
+    POST_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay bai viet"),
+    ANNOUNCEMENT_INVALID_AUDIENCE(HttpStatus.BAD_REQUEST, "Doi tuong nhan thong bao khong hop le"),
+
     // 404/400 — Leave (nghi phep)
     LEAVE_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay don nghi phep"),
     LEAVE_ALREADY_REVIEWED(HttpStatus.BAD_REQUEST, "Don nghi phep da duoc xu ly"),

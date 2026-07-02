@@ -38,4 +38,16 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
         """)
     long countActiveAdmins(@Param("roleName") RoleName roleName,
                            @Param("status") UserStatus status);
+
+    /** Id moi user o trang thai cho truoc (audience ALL cho thong bao). */
+    @Query("SELECT u.id FROM User u WHERE u.status = :status")
+    List<Long> findIdsByStatus(@Param("status") UserStatus status);
+
+    /** Id user co it nhat 1 vai tro trong danh sach, o trang thai cho truoc (audience ROLE). */
+    @Query("""
+        SELECT DISTINCT u.id FROM User u JOIN u.roles r
+        WHERE r.name IN :roles AND u.status = :status
+        """)
+    List<Long> findIdsByRolesAndStatus(@Param("roles") List<RoleName> roles,
+                                       @Param("status") UserStatus status);
 }
