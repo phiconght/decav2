@@ -85,9 +85,9 @@ public class StudentReportService {
         String topicName = exam.getTopic() == null ? null : exam.getTopic().getName();
         BreakdownResponse breakdown = breakdowns(studentId, classId, topicId);
 
-        // PHO DIEM cua bai thi (§12) — 1 call gop san.
+        // PHO DIEM cua bai thi (§12) — 1 call gop san (nhieu khoang cho kieu pho diem).
         ExamScoreDistribution distribution =
-                buildDistribution(examId, exam.getName(), classId, studentId);
+                buildDistribution(examId, exam.getName(), classId, studentId, 40);
 
         return new ExamReportDetail(
                 examId,
@@ -119,17 +119,42 @@ public class StudentReportService {
                 aggregationRepository.typeBreakdown(studentId, classId, topicId));
     }
 
-    /** Pho diem 1 bai thi cho 1 HV (§12.1) — co danh dau vi tri HV. */
-    public ExamScoreDistribution scoreDistribution(Long studentId, Long examId, Long classId) {
+    /** Pho diem 1 bai thi cho 1 HV (§12.1) — co danh dau vi tri HV. bandCount tuy chon. */
+    public ExamScoreDistribution scoreDistribution(Long studentId, Long examId, Long classId,
+                                                   int bands) {
         requireStudentInClass(studentId, classId);
         String examName = examStudentRepository.findByExamIdAndUserId(examId, studentId)
                 .map(es -> es.getExam().getName())
                 .orElse(null);
-        return buildDistribution(examId, examName, classId, studentId);
+        return buildDistribution(examId, examName, classId, studentId, bands);
+    }
+
+    /** Pho diem TONG cua khoa (§12.2) — bucket diem TB HV, danh dau HV neu co studentId. */
+    public ExamScoreDistribution courseSpectrum(Long studentId, Long classId, int bandCount) {
+        if (studentId != null) {
+            requireStudentInClass(studentId, classId);
+        }
+        var rows = aggregationRepository.studentAveragesForClass(classId);
+        List<Double> values = new java.util.ArrayList<>();
+        Double studentValue = null;
+        for (var r : rows) {
+            if (r.getAvgPct() == null) {
+                continue;
+            }
+            double v = r.getAvgPct() * 10.0;
+            values.add(v);
+            if (studentId != null && studentId.equals(r.getStudentId())) {
+                studentValue = v;
+            }
+        }
+        int classSize = (int) schoolClassRepository.countStudents(classId);
+        return ReportMapper.spectrum("Điểm trung bình khóa", values, studentValue,
+                Math.max(5, Math.min(bandCount, 60)), classSize);
     }
 
     private ExamScoreDistribution buildDistribution(Long examId, String examName,
-                                                    Long classId, Long studentId) {
+                                                    Long classId, Long studentId, int nBands) {
+        int n = Math.max(5, Math.min(nBands, 60));
         BigDecimal maxScore = aggregationRepository.examMaxScore(examId);
         int classSize = (int) schoolClassRepository.countStudents(classId);
         Integer rank = null;
@@ -138,10 +163,10 @@ public class StudentReportService {
             rank = rs == null || rs.getRank() == null ? null : rs.getRank().intValue();
         }
         List<ScoreBandProjection> bands = maxScore != null && maxScore.signum() > 0
-                ? aggregationRepository.scoreDistribution(examId, classId, maxScore, bandCount)
+                ? aggregationRepository.scoreDistribution(examId, classId, maxScore, n)
                 : List.of();
         ScoreStatsProjection stats = aggregationRepository.scoreStats(examId, classId, studentId);
-        return ReportMapper.distribution(examId, examName, maxScore, bandCount, bands,
+        return ReportMapper.distribution(examId, examName, maxScore, n, bands,
                 stats, classSize, rank);
     }
 

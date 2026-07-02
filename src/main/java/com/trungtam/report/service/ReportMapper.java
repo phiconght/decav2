@@ -21,6 +21,7 @@ import com.trungtam.report.repository.ReportAggregationRepository.TopicMasteryPr
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Chuyen projection (native query) sang DTO + tinh cac ti le dan xuat. */
@@ -163,5 +164,56 @@ final class ReportMapper {
                 stats == null ? null : stats.getHighest(),
                 stats == null ? null : stats.getLowest(),
                 rank, (int) submitted, classSize);
+    }
+
+    /**
+     * Pho diem TONG cua khoa (§12.2): bucket cac gia tri 0..10 (diem TB HV quy
+     * ve thang 10) thanh bandCount khoang; danh dau khoang chua HV neu co.
+     */
+    static ExamScoreDistribution spectrum(String name, List<Double> values,
+                                          Double studentValue, int bandCount,
+                                          Integer classSize) {
+        double max = 10.0;
+        long[] counts = new long[bandCount];
+        for (double v : values) {
+            counts[bandOf(v, max, bandCount) - 1]++;
+        }
+        Integer sbi = studentValue == null ? null : bandOf(studentValue, max, bandCount);
+
+        List<ScoreBand> bands = new ArrayList<>();
+        for (int i = 1; i <= bandCount; i++) {
+            BigDecimal from = BigDecimal.valueOf(max * (i - 1) / bandCount).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal to = BigDecimal.valueOf(max * i / bandCount).setScale(2, RoundingMode.HALF_UP);
+            bands.add(new ScoreBand(i, from, to, counts[i - 1], sbi != null && sbi == i));
+        }
+
+        int total = values.size();
+        Double percentile = null;
+        if (studentValue != null && total > 0) {
+            long le = values.stream().filter(v -> v <= studentValue).count();
+            percentile = BigDecimal.valueOf(le * 100.0 / total).setScale(1, RoundingMode.HALF_UP).doubleValue();
+        }
+        BigDecimal avg = null;
+        BigDecimal median = null;
+        BigDecimal highest = null;
+        BigDecimal lowest = null;
+        if (!values.isEmpty()) {
+            List<Double> sorted = values.stream().sorted().toList();
+            avg = BigDecimal.valueOf(values.stream().mapToDouble(x -> x).average().orElse(0))
+                    .setScale(2, RoundingMode.HALF_UP);
+            median = BigDecimal.valueOf(sorted.get(sorted.size() / 2)).setScale(2, RoundingMode.HALF_UP);
+            highest = BigDecimal.valueOf(sorted.get(sorted.size() - 1)).setScale(2, RoundingMode.HALF_UP);
+            lowest = BigDecimal.valueOf(sorted.get(0)).setScale(2, RoundingMode.HALF_UP);
+        }
+        BigDecimal studentScore = studentValue == null
+                ? null : BigDecimal.valueOf(studentValue).setScale(2, RoundingMode.HALF_UP);
+
+        return new ExamScoreDistribution(null, name, BigDecimal.TEN, bandCount, bands,
+                studentScore, sbi, percentile, avg, median, highest, lowest, null, total, classSize);
+    }
+
+    private static int bandOf(double v, double max, int bandCount) {
+        int idx = (int) Math.floor(v / max * bandCount) + 1;
+        return Math.min(Math.max(idx, 1), bandCount);
     }
 }

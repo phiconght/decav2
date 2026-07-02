@@ -49,8 +49,18 @@ public class ClassReportController {
     @PreAuthorize(CAN_ACCESS)
     public ApiResponse<ExamScoreDistribution> scoreDistribution(
             @PathVariable Long classId,
-            @PathVariable Long examId) {
-        return ApiResponse.ok(classReportService.scoreDistribution(classId, examId));
+            @PathVariable Long examId,
+            @RequestParam(defaultValue = "40") int bandCount) {
+        return ApiResponse.ok(classReportService.scoreDistribution(classId, examId, bandCount));
+    }
+
+    /** §12.2 — Pho diem TONG cua khoa (diem TB HV), khong danh dau. */
+    @GetMapping("/{classId}/score-distribution")
+    @PreAuthorize(CAN_ACCESS)
+    public ApiResponse<ExamScoreDistribution> courseSpectrum(
+            @PathVariable Long classId,
+            @RequestParam(defaultValue = "40") int bandCount) {
+        return ApiResponse.ok(classReportService.courseSpectrum(classId, bandCount));
     }
 
     @GetMapping("/{classId}/topic-mastery")

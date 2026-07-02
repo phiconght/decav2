@@ -48,15 +48,28 @@ public class ClassReportService {
                 aggregationRepository.typeBreakdown(null, classId, topicId));
     }
 
-    /** Pho diem 1 bai thi cua ca lop (§12.1) — khong danh dau HV. */
-    public ExamScoreDistribution scoreDistribution(Long classId, Long examId) {
+    /** Pho diem TONG cua khoa (§12.2) — bucket diem TB HV, khong danh dau. */
+    public ExamScoreDistribution courseSpectrum(Long classId, int bandCount) {
+        java.util.List<Double> values = new java.util.ArrayList<>();
+        for (var r : aggregationRepository.studentAveragesForClass(classId)) {
+            if (r.getAvgPct() != null) {
+                values.add(r.getAvgPct() * 10.0);
+            }
+        }
+        return ReportMapper.spectrum("Điểm trung bình khóa", values, null,
+                Math.max(5, Math.min(bandCount, 60)), null);
+    }
+
+    /** Pho diem 1 bai thi cua ca lop (§12.1) — khong danh dau HV. bandCount tuy chon. */
+    public ExamScoreDistribution scoreDistribution(Long classId, Long examId, int nBands) {
+        int n = Math.max(5, Math.min(nBands, 60));
         BigDecimal maxScore = aggregationRepository.examMaxScore(examId);
         String examName = examRepository.findById(examId).map(e -> e.getName()).orElse(null);
         List<ScoreBandProjection> bands = maxScore != null && maxScore.signum() > 0
-                ? aggregationRepository.scoreDistribution(examId, classId, maxScore, bandCount)
+                ? aggregationRepository.scoreDistribution(examId, classId, maxScore, n)
                 : List.of();
         ScoreStatsProjection stats = aggregationRepository.scoreStats(examId, classId, null);
-        return ReportMapper.distribution(examId, examName, maxScore, bandCount, bands,
+        return ReportMapper.distribution(examId, examName, maxScore, n, bands,
                 stats, null, null);
     }
 

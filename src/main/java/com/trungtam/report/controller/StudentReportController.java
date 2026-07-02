@@ -90,8 +90,20 @@ public class StudentReportController {
     public ApiResponse<ExamScoreDistribution> scoreDistribution(
             @PathVariable Long studentId,
             @PathVariable Long examId,
-            @RequestParam Long classId) {
-        return ApiResponse.ok(studentReportService.scoreDistribution(studentId, examId, classId));
+            @RequestParam Long classId,
+            @RequestParam(defaultValue = "40") int bandCount) {
+        return ApiResponse.ok(
+                studentReportService.scoreDistribution(studentId, examId, classId, bandCount));
+    }
+
+    /** §12.2 — Pho diem TONG cua khoa, danh dau vi tri HV (diem TB). */
+    @GetMapping("/students/{studentId}/classes/{classId}/score-distribution")
+    @PreAuthorize(CAN_VIEW)
+    public ApiResponse<ExamScoreDistribution> courseSpectrum(
+            @PathVariable Long studentId,
+            @PathVariable Long classId,
+            @RequestParam(defaultValue = "40") int bandCount) {
+        return ApiResponse.ok(studentReportService.courseSpectrum(studentId, classId, bandCount));
     }
 
     @GetMapping("/students/{studentId}/classes/{classId}/topic-mastery")
