@@ -66,6 +66,7 @@ public class ExamService {
     private final SchoolClassRepository classRepository;
     private final UserRepository userRepository;
     private final ExamStudentRepository examStudentRepository;
+    private final com.trungtam.exam.repository.ExamQuestionResultRepository examQuestionResultRepository;
     private final com.trungtam.topic.repository.TopicRepository topicRepository;
     private final CodeGeneratorService codeGeneratorService;
 
@@ -192,6 +193,11 @@ public class ExamService {
                     created.setSource(ExamStudentSource.CLASS);
                     return created;
                 });
+        // Roi trang thai DA_LAM -> ket qua cham tung cau khong con hieu luc, xoa di.
+        if (es.getStatus() == ExamStudentStatus.DA_LAM && newStatus != ExamStudentStatus.DA_LAM
+                && es.getId() != null) {
+            examQuestionResultRepository.deleteByExamStudentId(es.getId());
+        }
         es.setStatus(newStatus);
         examStudentRepository.save(es);
     }

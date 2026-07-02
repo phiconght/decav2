@@ -1,5 +1,5 @@
 -- =====================================================================
--- V28: Ket qua cham tung cau cua moi bai nop (exam_question_result)
+-- V30: Ket qua cham tung cau cua moi bai nop (exam_question_result)
 -- Snapshot luc nop bai (hoac backfill tu answers JSON) — nen tang cho
 -- module BAO CAO: breakdown theo do kho / loai cau / chuyen de (chuong).
 --   correct = TRUE/FALSE cho cau cham tu dong (MC/TF), NULL = tu luan

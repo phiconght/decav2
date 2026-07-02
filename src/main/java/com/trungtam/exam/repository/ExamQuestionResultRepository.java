@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public interface ExamQuestionResultRepository extends JpaRepository<ExamQuestionResult, Long> {
@@ -13,6 +14,9 @@ public interface ExamQuestionResultRepository extends JpaRepository<ExamQuestion
     @Modifying
     @Query("DELETE FROM ExamQuestionResult r WHERE r.examStudent.id = :examStudentId")
     void deleteByExamStudentId(@Param("examStudentId") Long examStudentId);
+
+    @Query("SELECT COALESCE(SUM(r.maxPoints), 0) FROM ExamQuestionResult r WHERE r.examStudent.id = :examStudentId")
+    BigDecimal sumMaxPointsByExamStudentId(@Param("examStudentId") Long examStudentId);
 
     /**
      * Cac bai DA_LAM chua co ket qua tung cau (phuc vu backfill bai nop

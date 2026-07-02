@@ -54,6 +54,11 @@ app:
       enabled: ${APP_EXAM_BACKFILL_ENABLED:true}
       fixed-delay: ${APP_EXAM_BACKFILL_FIXED_DELAY:60000}     # ms, mac dinh 60s
       initial-delay: ${APP_EXAM_BACKFILL_INITIAL_DELAY:30000} # ms, cho app khoi dong
+    question-result-backfill:
+      # Bu ket qua cham tung cau (exam_question_result) cho bai DA_LAM nop truoc khi co bang
+      enabled: ${APP_QUESTION_RESULT_BACKFILL_ENABLED:true}
+      fixed-delay: ${APP_QUESTION_RESULT_BACKFILL_FIXED_DELAY:60000}     # ms, mac dinh 60s
+      initial-delay: ${APP_QUESTION_RESULT_BACKFILL_INITIAL_DELAY:45000} # ms, cho app khoi dong
     schedule-gen:
       # Sinh/mo rong buoi hoc tu quy tac lich (idempotent)
       enabled: ${APP_SCHEDULE_GEN_ENABLED:true}

@@ -32,4 +32,19 @@ public interface SchoolClassRepository extends JpaRepository<SchoolClass, Long>,
 
     @Query("SELECT c FROM SchoolClass c JOIN c.teachers t WHERE t.id = :userId ORDER BY c.createdAt DESC")
     List<SchoolClass> findClassesByTeacherId(@Param("userId") Long userId);
+
+    /** GV/tro giang co chung lop voi hoc vien (cho scope bao cao). */
+    @Query("""
+            SELECT COUNT(c) > 0 FROM SchoolClass c
+            JOIN c.teachers t JOIN c.students s
+            WHERE t.id = :teacherId AND s.id = :studentId
+            """)
+    boolean teacherSharesClassWithStudent(@Param("teacherId") Long teacherId,
+                                          @Param("studentId") Long studentId);
+
+    /** GV/tro giang co day lop nay khong. */
+    boolean existsByIdAndTeachers_Id(Long id, Long teacherId);
+
+    /** Hoc vien co thuoc lop nay khong. */
+    boolean existsByIdAndStudents_Id(Long id, Long studentId);
 }

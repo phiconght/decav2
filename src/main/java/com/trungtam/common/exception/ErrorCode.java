@@ -99,6 +99,12 @@ public enum ErrorCode {
     LEAVE_ALREADY_REVIEWED(HttpStatus.BAD_REQUEST, "Don nghi phep da duoc xu ly"),
     LEAVE_INVALID_RANGE(HttpStatus.BAD_REQUEST, "Pham vi xin nghi khong hop le"),
 
+    // 404/403/400 — Bao cao (nhan xet)
+    REPORT_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay nhan xet"),
+    REPORT_COMMENT_FORBIDDEN(HttpStatus.FORBIDDEN, "Khong co quyen sua/xoa nhan xet nay"),
+    STUDENT_NOT_IN_CLASS(HttpStatus.BAD_REQUEST, "Hoc vien khong thuoc khoa hoc"),
+    EXAM_NOT_IN_CLASS(HttpStatus.BAD_REQUEST, "De thi khong thuoc khoa hoc"),
+
     // 400 — File validation
     FILE_EMPTY(HttpStatus.BAD_REQUEST, "File rong"),
     UNSUPPORTED_FILE_TYPE(HttpStatus.BAD_REQUEST, "Dinh dang file khong ho tro"),
