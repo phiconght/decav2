@@ -69,4 +69,13 @@ public class Notification extends BaseEntity {
 
     @Column(name = "error", length = 500)
     private String error;
+
+    /** Thoi diem nguoi nhan da doc thong bao (null = chua doc). */
+    @Column(name = "read_at")
+    private Instant readAt;
+
+    /** Tin nhan (noi dung day du) tuong ung; null neu su kien khong co noi dung day du. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "message_id")
+    private com.trungtam.message.entity.Message message;
 }

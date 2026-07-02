@@ -16,6 +16,8 @@ public record NotificationItem(
         String body,
         String payload,
         NotificationStatus status,
+        boolean read,
+        Long messageId,
         Instant sentAt,
         Instant createdAt
 ) {
@@ -27,6 +29,8 @@ public record NotificationItem(
                 n.getBody(),
                 n.getPayload(),
                 n.getStatus(),
+                n.getReadAt() != null,
+                n.getMessage() != null ? n.getMessage().getId() : null,
                 n.getSentAt(),
                 n.getCreatedAt());
     }

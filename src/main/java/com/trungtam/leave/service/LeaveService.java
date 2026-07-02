@@ -36,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -107,7 +108,28 @@ public class LeaveService {
         }
         entity.setReason(req.reason());
         entity.setStatus(LeaveStatus.PENDING);
-        return LeaveItem.from(leaveRequestRepository.save(entity));
+        LeaveRequest saved = leaveRequestRepository.save(entity);
+        notifyLeaveSubmitted(saved);
+        return LeaveItem.from(saved);
+    }
+
+    /**
+     * Bao phu huynh khi con vua gui don xin nghi (LEAVE_SUBMITTED).
+     * enqueue/notify chay REQUIRES_NEW nen an toan goi giua giao dich tao don.
+     */
+    private void notifyLeaveSubmitted(LeaveRequest leave) {
+        Long leaveId = leave.getId();
+        Long studentId = leave.getStudent().getId();
+        String studentName = leave.getStudent().getFullName() != null
+                ? leave.getStudent().getFullName() : "Hoc vien";
+        String title = "Con vua gui don xin nghi";
+        String body = studentName + " vua gui mot don xin nghi.";
+        String content = body + "\n\n" + describeLeave(leave);
+        String payload = "{\"leaveId\":" + leaveId + "}";
+        for (Long parentId : studentParentRepository.findParentIdsByStudentId(studentId)) {
+            notificationService.notify(parentId, NotificationType.LEAVE_SUBMITTED, title, body,
+                    title, content, payload, "LEAVE_SUBMITTED:" + leaveId + ":" + parentId);
+        }
     }
 
     @Transactional
@@ -149,16 +171,44 @@ public class LeaveService {
         String body = approved
                 ? "Don xin nghi cua hoc vien da duoc duyet."
                 : "Don xin nghi cua hoc vien da bi tu choi.";
+        String content = body + "\n\n" + describeLeave(leave);
         String payload = "{\"leaveId\":" + leaveId + ",\"approved\":" + approved + "}";
 
         // Hoc vien
-        notificationService.enqueue(studentId, NotificationType.LEAVE_RESULT, title, body, payload,
-                "LEAVE_RESULT:" + leaveId + ":" + studentId);
+        notificationService.notify(studentId, NotificationType.LEAVE_RESULT, title, body, title, content,
+                payload, "LEAVE_RESULT:" + leaveId + ":" + studentId);
         // Tung phu huynh
         for (Long parentId : studentParentRepository.findParentIdsByStudentId(studentId)) {
-            notificationService.enqueue(parentId, NotificationType.LEAVE_RESULT, title, body, payload,
-                    "LEAVE_RESULT:" + leaveId + ":" + parentId);
+            notificationService.notify(parentId, NotificationType.LEAVE_RESULT, title, body, title, content,
+                    payload, "LEAVE_RESULT:" + leaveId + ":" + parentId);
         }
+    }
+
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+
+    /** Mo ta pham vi don nghi (buoi / khoang ngay, lop, ly do) cho noi dung tin nhan day du. */
+    private String describeLeave(LeaveRequest leave) {
+        StringBuilder sb = new StringBuilder();
+        if (leave.getScope() == LeaveScope.SESSION && leave.getSession() != null) {
+            ClassSession s = leave.getSession();
+            sb.append("Pham vi: 1 buoi hoc");
+            sb.append("\nNgay: ").append(s.getSessionDate().format(DATE_FMT));
+            if (s.getStartTime() != null) {
+                sb.append(" luc ").append(s.getStartTime().format(TIME_FMT));
+            }
+            if (s.getClazz() != null) {
+                sb.append("\nLop: ").append(s.getClazz().getName());
+            }
+        } else {
+            sb.append("Pham vi: tu ").append(leave.getDateFrom() != null ? leave.getDateFrom().format(DATE_FMT) : "?")
+                    .append(" den ").append(leave.getDateTo() != null ? leave.getDateTo().format(DATE_FMT) : "?");
+            sb.append("\nLop: ").append(leave.getClazz() != null ? leave.getClazz().getName() : "Tat ca lop");
+        }
+        if (leave.getReason() != null && !leave.getReason().isBlank()) {
+            sb.append("\nLy do: ").append(leave.getReason());
+        }
+        return sb.toString();
     }
 
     /**

@@ -5,8 +5,13 @@ import com.trungtam.notification.entity.NotificationStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
@@ -19,4 +24,14 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     Page<Notification> findByRecipientIdAndStatusOrderByIdDesc(
             Long recipientId, NotificationStatus status, Pageable pageable);
+
+    Page<Notification> findByRecipientIdAndReadAtIsNullOrderByIdDesc(Long recipientId, Pageable pageable);
+
+    Optional<Notification> findByIdAndRecipientId(Long id, Long recipientId);
+
+    long countByRecipientIdAndReadAtIsNull(Long recipientId);
+
+    @Modifying
+    @Query("UPDATE Notification n SET n.readAt = :now WHERE n.recipient.id = :recipientId AND n.readAt IS NULL")
+    int markAllRead(@Param("recipientId") Long recipientId, @Param("now") Instant now);
 }

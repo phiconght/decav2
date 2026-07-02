@@ -73,10 +73,10 @@ app:
       fixed-delay: ${APP_MISSING_SCAN_FIXED_DELAY:300000}   # ms, mac dinh 5 phut
       grace-minutes: 15          # tre qua start+grace -> TRE (ScheduleService.checkin) / qua han check
     session-remind:
-      # Nhac HV + PH khi buoi PLANNED sap bat dau
+      # Nhac HV + GV khi buoi PLANNED sap bat dau (PH chi khi bat tuong minh preference)
       enabled: ${APP_SESSION_REMIND_ENABLED:true}
-      fixed-delay: ${APP_SESSION_REMIND_FIXED_DELAY:300000} # ms, mac dinh 5 phut
-      remind-before-minutes: ${APP_SESSION_REMIND_BEFORE:60} # phut truoc gio bat dau
+      fixed-delay: ${APP_SESSION_REMIND_FIXED_DELAY:60000}  # ms, mac dinh 60s (de khong truot cua so 15')
+      remind-before-minutes: ${APP_SESSION_REMIND_BEFORE:15} # phut truoc gio bat dau
     notify-worker:
       # Gui outbox thong bao PENDING qua PushSender (hien LogPushSender stub)
       enabled: ${APP_NOTIFY_WORKER_ENABLED:true}

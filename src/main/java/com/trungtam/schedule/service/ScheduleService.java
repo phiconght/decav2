@@ -48,6 +48,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -430,8 +431,14 @@ public class ScheduleService {
                     && nowLocal.isAfter(s.getStartTime().plusMinutes(graceMinutes)));
         a.setStatus(late ? AttendanceStatus.TRE : AttendanceStatus.CO_MAT);
         attendanceRepository.save(a);
+
+        String studentName = studentName(currentUserId);
+        String when = formatTime(a.getCheckInAt());
+        String stt = late ? "tre" : "dung gio";
+        String shortBody = studentName + " da check-in luc " + when + " (" + stt + ").";
+        String fullContent = shortBody + "\n\n" + describeSession(s);
         notifyParentsAttendance(s, currentUserId, NotificationType.CHECKIN_OK,
-                "Da check-in", "Hoc vien da check-in vao buoi hoc.", "CHECKIN_OK");
+                "Da check-in", shortBody, "Con da check-in", fullContent, "CHECKIN_OK");
     }
 
     @Transactional
@@ -450,18 +457,60 @@ public class ScheduleService {
                 });
         a.setCheckOutAt(Instant.now());
         attendanceRepository.save(a);
+
+        String studentName = studentName(currentUserId);
+        String when = formatTime(a.getCheckOutAt());
+        String shortBody = studentName + " da check-out luc " + when + ".";
+        String fullContent = shortBody + "\n\n" + describeSession(s);
         notifyParentsAttendance(s, currentUserId, NotificationType.CHECKOUT_OK,
-                "Da check-out", "Hoc vien da check-out khoi buoi hoc.", "CHECKOUT_OK");
+                "Da check-out", shortBody, "Con da check-out", fullContent, "CHECKOUT_OK");
     }
 
-    /** Bao phu huynh cua HV khi HV check-in/check-out (idempotent theo sessionId+parentId). */
+    /**
+     * Bao phu huynh cua HV khi HV check-in/check-out (idempotent theo sessionId+parentId).
+     * Tao Tin nhan (noi dung day du) + Thong bao (vắn tắt) qua notify().
+     */
     private void notifyParentsAttendance(ClassSession s, Long studentId, NotificationType type,
-                                         String title, String body, String keyPrefix) {
+                                         String title, String body, String fullTitle,
+                                         String fullContent, String keyPrefix) {
         String payload = "{\"sessionId\":" + s.getId() + ",\"studentId\":" + studentId + "}";
         for (Long parentId : studentParentRepository.findParentIdsByStudentId(studentId)) {
-            notificationService.enqueue(parentId, type, title, body, payload,
+            notificationService.notify(parentId, type, title, body, fullTitle, fullContent, payload,
                     keyPrefix + ":" + s.getId() + ":" + parentId);
         }
+    }
+
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+
+    private String studentName(Long userId) {
+        return userRepository.findById(userId).map(User::getFullName).orElse("Hoc vien");
+    }
+
+    private String formatTime(Instant instant) {
+        return instant == null ? "" : instant.atZone(zone()).toLocalTime().format(TIME_FMT);
+    }
+
+    /** Mo ta buoi hoc (lop, mon, ngay, gio, phong) cho noi dung tin nhan day du. */
+    private String describeSession(ClassSession s) {
+        SchoolClass c = s.getClazz();
+        StringBuilder sb = new StringBuilder();
+        sb.append("Lop: ").append(c.getName());
+        if (c.getSubject() != null && c.getSubject().getName() != null) {
+            sb.append(" (").append(c.getSubject().getName()).append(')');
+        }
+        sb.append("\nNgay: ").append(s.getSessionDate().format(DATE_FMT));
+        sb.append("\nGio: ").append(s.getStartTime().format(TIME_FMT));
+        if (s.endTime() != null) {
+            sb.append(" - ").append(s.endTime().format(TIME_FMT));
+        }
+        if (s.getRoom() != null) {
+            sb.append("\nPhong: ").append(s.getRoom().getName());
+            if (s.getRoom().getBranch() != null) {
+                sb.append(" - ").append(s.getRoom().getBranch().getName());
+            }
+        }
+        return sb.toString();
     }
 
     public List<AttendanceItem> listAttendance(Long sessionId) {

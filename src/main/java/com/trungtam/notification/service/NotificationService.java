@@ -4,6 +4,8 @@ import com.trungtam.common.exception.AppException;
 import com.trungtam.common.exception.ErrorCode;
 import com.trungtam.identity.entity.User;
 import com.trungtam.identity.repository.UserRepository;
+import com.trungtam.message.entity.Message;
+import com.trungtam.message.repository.MessageRepository;
 import com.trungtam.notification.dto.request.NotificationSearchParams;
 import com.trungtam.notification.dto.request.UpdatePreferenceRequest;
 import com.trungtam.notification.dto.request.UpdatePreferencesRequest;
@@ -29,6 +31,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Instant;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
@@ -45,6 +48,7 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final NotificationPreferenceRepository preferenceRepository;
+    private final MessageRepository messageRepository;
     private final UserRepository userRepository;
 
     /**
@@ -61,6 +65,31 @@ public class NotificationService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Optional<Long> enqueue(Long recipientId, NotificationType type, String title,
                                   String body, String payload, String dedupeKey) {
+        return enqueueInternal(recipientId, type, title, body, payload, dedupeKey, null, null);
+    }
+
+    /**
+     * Phat mot su kien: tao Tin nhan (noi dung DAY DU) + Thong bao (vắn tắt) tro ve tin nhan do,
+     * CUNG mot giao dich. Idempotent qua dedupeKey (bo qua ca cap neu trung).
+     * Cac module goi method nay khi muon nguoi nhan doc duoc chi tiet trong hop thu.
+     *
+     * @return id thong bao vua tao, hoac empty neu bi bo qua (tat/im lang/trung/khong nguoi nhan).
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Optional<Long> notify(Long recipientId, NotificationType type, String shortTitle,
+                                 String shortBody, String fullTitle, String fullContent,
+                                 String payload, String dedupeKey) {
+        return enqueueInternal(recipientId, type, shortTitle, shortBody, payload, dedupeKey,
+                fullTitle, fullContent);
+    }
+
+    /**
+     * Loi chung cho enqueue/notify. fullContent != null -> tao them Message va lien ket.
+     * Chay trong giao dich REQUIRES_NEW da duoc mo boi enqueue()/notify().
+     */
+    private Optional<Long> enqueueInternal(Long recipientId, NotificationType type, String title,
+                                           String body, String payload, String dedupeKey,
+                                           String fullTitle, String fullContent) {
         if (recipientId == null || type == null) {
             return Optional.empty();
         }
@@ -75,6 +104,17 @@ public class NotificationService {
         User recipient = userRepository.findById(recipientId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
+        Message message = null;
+        if (StringUtils.hasText(fullContent)) {
+            message = new Message();
+            message.setRecipient(recipient);
+            message.setType(type);
+            message.setTitle(StringUtils.hasText(fullTitle) ? fullTitle : title);
+            message.setContent(fullContent);
+            message.setPayload(payload);
+            message = messageRepository.save(message);
+        }
+
         Notification n = new Notification();
         n.setRecipient(recipient);
         n.setType(type);
@@ -83,6 +123,7 @@ public class NotificationService {
         n.setPayload(payload);
         n.setDedupeKey(StringUtils.hasText(dedupeKey) ? dedupeKey : null);
         n.setStatus(NotificationStatus.PENDING);
+        n.setMessage(message);
         try {
             Notification saved = notificationRepository.saveAndFlush(n);
             return Optional.of(saved.getId());
@@ -91,6 +132,16 @@ public class NotificationService {
             log.debug("[notify] trung dedupe_key={} -> bo qua", dedupeKey);
             return Optional.empty();
         }
+    }
+
+    /**
+     * Nguoi dung da BAT tuong minh loai thong bao nay chua (co pref row va enabled=true)?
+     * Dung cho loai mac dinh TAT (vd phu huynh nhan nhac buoi hoc).
+     */
+    public boolean isOptedIn(Long userId, NotificationType type) {
+        return preferenceRepository.findByUserIdAndType(userId, type)
+                .map(NotificationPreference::isEnabled)
+                .orElse(false);
     }
 
     /** Kiem tra tuy chon: bat hay khong, va co dang trong khung gio im lang khong. */
@@ -128,10 +179,36 @@ public class NotificationService {
         int page = Math.max(0, params.getCurrent() - 1);
         int size = params.getPageSize() < 1 ? 10 : Math.min(params.getPageSize(), 100);
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
-        Page<Notification> result = (params.getStatus() == null)
-                ? notificationRepository.findByRecipientIdOrderByIdDesc(userId, pageable)
-                : notificationRepository.findByRecipientIdAndStatusOrderByIdDesc(userId, params.getStatus(), pageable);
+
+        Page<Notification> result;
+        if (Boolean.TRUE.equals(params.getUnread())) {
+            result = notificationRepository.findByRecipientIdAndReadAtIsNullOrderByIdDesc(userId, pageable);
+        } else if (params.getStatus() != null) {
+            result = notificationRepository.findByRecipientIdAndStatusOrderByIdDesc(userId, params.getStatus(), pageable);
+        } else {
+            result = notificationRepository.findByRecipientIdOrderByIdDesc(userId, pageable);
+        }
         return NotificationPageResponse.of(result.map(NotificationItem::from));
+    }
+
+    public long unreadCount() {
+        return notificationRepository.countByRecipientIdAndReadAtIsNull(currentUserId());
+    }
+
+    @Transactional
+    public void markRead(Long id) {
+        Long userId = currentUserId();
+        Notification n = notificationRepository.findByIdAndRecipientId(id, userId)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND));
+        if (n.getReadAt() == null) {
+            n.setReadAt(Instant.now());
+            notificationRepository.save(n);
+        }
+    }
+
+    @Transactional
+    public void markAllRead() {
+        notificationRepository.markAllRead(currentUserId(), Instant.now());
     }
 
     public List<PreferenceItem> listMyPreferences() {

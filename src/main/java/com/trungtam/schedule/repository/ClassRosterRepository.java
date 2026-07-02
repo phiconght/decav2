@@ -17,6 +17,10 @@ public interface ClassRosterRepository extends JpaRepository<SchoolClass, Long> 
     @Query(value = "SELECT cs.user_id FROM class_students cs WHERE cs.class_id = :classId", nativeQuery = true)
     List<Long> findStudentIdsByClassId(@Param("classId") Long classId);
 
+    /** Giao vien cua lop (class_teachers) — phuc vu nhac buoi cho GV. */
+    @Query(value = "SELECT ct.user_id FROM class_teachers ct WHERE ct.class_id = :classId", nativeQuery = true)
+    List<Long> findTeacherIdsByClassId(@Param("classId") Long classId);
+
     /** Cac lop HV ghi danh (phuc vu view PARENT/STUDENT khi can gop). */
     @Query(value = "SELECT cs.class_id FROM class_students cs WHERE cs.user_id = :userId", nativeQuery = true)
     List<Long> findClassIdsByStudentId(@Param("userId") Long userId);

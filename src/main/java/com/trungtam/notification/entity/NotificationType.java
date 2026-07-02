@@ -8,6 +8,7 @@ public enum NotificationType {
     MISSING_CHECKOUT,
     CHECKIN_OK,
     CHECKOUT_OK,
+    LEAVE_SUBMITTED,
     LEAVE_RESULT,
     SCHEDULE_CHANGED,
     SESSION_REMINDER

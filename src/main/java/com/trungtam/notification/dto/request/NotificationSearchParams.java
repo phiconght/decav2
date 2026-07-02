@@ -11,6 +11,7 @@ import lombok.Setter;
 @Setter
 public class NotificationSearchParams {
     private NotificationStatus status;
+    private Boolean unread;
     private int current = 1;
     private int pageSize = 10;
     private String sortField;
