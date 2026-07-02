@@ -61,4 +61,11 @@ public class ExamStudent extends BaseEntity {
 
     @Column(name = "score", precision = 6, scale = 2)
     private BigDecimal score;
+
+    /**
+     * JSON cau tra loi cua hoc vien (xem V26). Khi DANG_KIEM_TRA la ban nhap
+     * (luu tien do), khi DA_LAM la ban da nop.
+     */
+    @Column(name = "answers", columnDefinition = "TEXT")
+    private String answers;
 }

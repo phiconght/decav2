@@ -63,6 +63,11 @@ public enum ErrorCode {
     EXAM_SUPPLEMENTARY_NO_STUDENT(HttpStatus.BAD_REQUEST, "De bo sung phai chon it nhat 1 hoc sinh"),
     EXAM_STATUS_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "Trang thai khong duoc phep dat thu cong"),
 
+    // 403/400 — Lam bai de thi (hoc vien)
+    EXAM_NOT_AVAILABLE(HttpStatus.FORBIDDEN, "De thi chua duoc phat hanh cho ban"),
+    EXAM_ALREADY_SUBMITTED(HttpStatus.BAD_REQUEST, "Bai thi da duoc nop"),
+    EXAM_TIME_OVER(HttpStatus.BAD_REQUEST, "Da het thoi gian lam bai"),
+
     // 404/409 — Room (co so / phong / ngay nghi)
     BRANCH_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay co so"),
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay phong hoc"),

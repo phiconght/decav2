@@ -3,15 +3,19 @@ package com.trungtam.exam.controller;
 import com.trungtam.common.dto.ApiResponse;
 import com.trungtam.exam.dto.request.CreateExamRequest;
 import com.trungtam.exam.dto.request.ExamSearchParams;
+import com.trungtam.exam.dto.request.SubmitExamRequest;
 import com.trungtam.exam.dto.request.UpdateExamStatusRequest;
 import com.trungtam.exam.dto.request.UpdateExamStudentStatusRequest;
 import com.trungtam.exam.dto.response.ExamClassItem;
 import com.trungtam.exam.dto.response.ExamDetailResponse;
+import com.trungtam.exam.dto.response.ExamGradeResponse;
 import com.trungtam.exam.dto.response.ExamListItem;
 import com.trungtam.exam.dto.response.ExamPageResponse;
+import com.trungtam.exam.dto.response.ExamPaperResponse;
 import com.trungtam.exam.dto.response.StudentExamItem;
 import com.trungtam.exam.dto.response.StudentOptionResponse;
 import com.trungtam.exam.service.ExamService;
+import com.trungtam.exam.service.ExamTakingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -37,6 +41,7 @@ import java.util.List;
 public class ExamController {
 
     private final ExamService examService;
+    private final ExamTakingService examTakingService;
 
     @GetMapping
     @PreAuthorize("hasAuthority('EXAM:READ')")
@@ -108,6 +113,33 @@ public class ExamController {
             @PathVariable Long userId,
             @PathVariable Long classId) {
         return ApiResponse.ok(examService.listStudentExamsInClass(userId, classId));
+    }
+
+    /** Hoc vien lay de de lam bai (self-scoped, an dap an khi dang lam). */
+    @GetMapping("/{id}/paper")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<ExamPaperResponse> getPaper(@PathVariable Long id) {
+        return ApiResponse.ok(examTakingService.getPaper(id));
+    }
+
+    /** Hoc vien nop bai -> cham MC/TF, luu diem + cau tra loi. */
+    @PostMapping("/{id}/submit")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<ExamGradeResponse> submitPaper(
+            @PathVariable Long id,
+            @RequestBody(required = false) SubmitExamRequest request) {
+        return ApiResponse.ok(examTakingService.submit(
+                id, request == null ? SubmitExamRequest.empty() : request));
+    }
+
+    /** Hoc vien luu nhap bai dang lam (giu tien do). */
+    @PostMapping("/{id}/draft")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<Void> saveDraft(
+            @PathVariable Long id,
+            @RequestBody(required = false) SubmitExamRequest request) {
+        examTakingService.saveDraft(id, request == null ? SubmitExamRequest.empty() : request);
+        return ApiResponse.ok();
     }
 
     /** Admin doi trang thai de cho 1 hoc vien. */
