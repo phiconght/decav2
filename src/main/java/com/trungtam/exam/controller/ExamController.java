@@ -1,6 +1,7 @@
 package com.trungtam.exam.controller;
 
 import com.trungtam.common.dto.ApiResponse;
+import com.trungtam.exam.dto.PdfVariant;
 import com.trungtam.exam.dto.request.CreateExamRequest;
 import com.trungtam.exam.dto.request.ExamSearchParams;
 import com.trungtam.exam.dto.request.SubmitExamRequest;
@@ -14,11 +15,15 @@ import com.trungtam.exam.dto.response.ExamPageResponse;
 import com.trungtam.exam.dto.response.ExamPaperResponse;
 import com.trungtam.exam.dto.response.StudentExamItem;
 import com.trungtam.exam.dto.response.StudentOptionResponse;
+import com.trungtam.exam.service.ExamPdfService;
 import com.trungtam.exam.service.ExamService;
 import com.trungtam.exam.service.ExamTakingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,6 +47,25 @@ public class ExamController {
 
     private final ExamService examService;
     private final ExamTakingService examTakingService;
+    private final ExamPdfService examPdfService;
+
+    /**
+     * Xuat de thi ra PDF. Moi role goi duoc; noi dung gioi han theo quyen:
+     * EXAM:READ -> DE + DAP_AN; STUDENT/PARENT -> chi DE cua de available voi minh.
+     */
+    @GetMapping("/{id}/pdf")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<byte[]> exportPdf(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "DE") PdfVariant variant) {
+        ExamPdfService.ExamPdf pdf = examPdfService.render(id, variant);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + pdf.asciiFilename()
+                                + "\"; filename*=UTF-8''" + pdf.utf8Filename())
+                .body(pdf.bytes());
+    }
 
     @GetMapping
     @PreAuthorize("hasAuthority('EXAM:READ')")
