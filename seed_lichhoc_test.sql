@@ -32,8 +32,8 @@ INSERT INTO branches (code, name, address, active, created_at, created_by) VALUE
   ('CS2', 'Cơ sở Thủ Đức', '45 Võ Văn Ngân, Thủ Đức',   TRUE, now(), 'seed-lichhoc');
 
 -- ---------- 2) PHÒNG HỌC (6 phòng, 2 cơ sở) ----------
-INSERT INTO rooms (code, name, branch_id, capacity, note, active, created_at, created_by)
-SELECT v.code, v.name, b.id, v.cap, NULL, TRUE, now(), 'seed-lichhoc'
+INSERT INTO rooms (code, name, branch_id, capacity, note, active, qr_code, created_at, created_by)
+SELECT v.code, v.name, b.id, v.cap, NULL, TRUE, gen_random_uuid()::text, now(), 'seed-lichhoc'
 FROM (VALUES
     ('P101', 'Phòng 101', 'CS1', 30),
     ('P102', 'Phòng 102', 'CS1', 25),

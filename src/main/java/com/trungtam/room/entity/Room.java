@@ -43,4 +43,8 @@ public class Room extends BaseEntity {
 
     @Column(name = "active", nullable = false)
     private boolean active = true;
+
+    /** Ma QR tinh cua phong (UUID), in dan tai phong de GV cham cong. */
+    @Column(name = "qr_code", nullable = false, length = 36)
+    private String qrCode;
 }

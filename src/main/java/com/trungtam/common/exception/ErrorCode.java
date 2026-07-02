@@ -87,6 +87,13 @@ public enum ErrorCode {
     QR_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "Ma QR khong hop le hoac da het han"),
     NOT_IN_ROSTER(HttpStatus.FORBIDDEN, "Hoc vien khong thuoc buoi hoc"),
 
+    // 400/403 — Cham cong giao vien
+    NOT_SESSION_TEACHER(HttpStatus.FORBIDDEN, "Ban khong phai giao vien cua buoi hoc nay"),
+    ROOM_QR_INVALID(HttpStatus.BAD_REQUEST, "Ma QR phong khong dung (sai phong hoac ma da doi)"),
+    TEACHER_CHECKIN_TIME_INVALID(HttpStatus.BAD_REQUEST, "Ngoai khung gio cham cong cua buoi"),
+    TEACHER_ALREADY_CHECKED_IN(HttpStatus.BAD_REQUEST, "Buoi nay da cham cong vao"),
+    TEACHER_NOT_CHECKED_IN(HttpStatus.BAD_REQUEST, "Chua cham cong vao, khong the cham cong ra"),
+
     // 404/400 — Leave (nghi phep)
     LEAVE_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay don nghi phep"),
     LEAVE_ALREADY_REVIEWED(HttpStatus.BAD_REQUEST, "Don nghi phep da duoc xu ly"),

@@ -83,6 +83,7 @@ public class ScheduleService {
     private final StudentParentRepository studentParentRepository;
     private final NotificationService notificationService;
     private final QrTokenService qrTokenService;
+    private final TeacherAttendanceService teacherAttendanceService;
 
     @Value("${app.schedule.timezone:Asia/Ho_Chi_Minh}")
     private String timezone;
@@ -559,8 +560,7 @@ public class ScheduleService {
 
         List<TimetableItem> items = switch (view) {
             case VIEW_STUDENT -> studentTimetable(refId, from, to, null, null);
-            case VIEW_TEACHER -> mapSessions(
-                    sessionRepository.findTimetableForTeacher(refId, from, to), null, null);
+            case VIEW_TEACHER -> teacherTimetable(refId, from, to);
             case VIEW_ROOM -> mapSessions(
                     sessionRepository.findTimetableForRoom(refId, from, to), null, null);
             case VIEW_PARENT -> parentTimetable(refId, from, to);
@@ -594,6 +594,17 @@ public class ScheduleService {
         return result;
     }
 
+    private List<TimetableItem> teacherTimetable(Long teacherId, LocalDate from, LocalDate to) {
+        List<ClassSession> sessions = sessionRepository.findTimetableForTeacher(teacherId, from, to);
+        List<Long> ids = sessions.stream().map(ClassSession::getId).toList();
+        Map<Long, String> statusMap = teacherAttendanceService.statusBySessionIds(ids);
+        List<TimetableItem> result = new ArrayList<>();
+        for (ClassSession s : sessions) {
+            result.add(toItem(s, null, null, null, false, statusMap.get(s.getId())));
+        }
+        return result;
+    }
+
     private List<TimetableItem> parentTimetable(Long parentId, LocalDate from, LocalDate to) {
         List<TimetableItem> result = new ArrayList<>();
         // Cac con cua PH lay tu student_parents qua query trong guardian module (neu co).
@@ -613,13 +624,19 @@ public class ScheduleService {
     private List<TimetableItem> mapSessions(List<ClassSession> sessions, Long studentId, String studentName) {
         List<TimetableItem> result = new ArrayList<>();
         for (ClassSession s : sessions) {
-            result.add(toItem(s, studentId, studentName, null, false));
+            result.add(toItem(s, studentId, studentName, null, false, null));
         }
         return result;
     }
 
     private TimetableItem toItem(ClassSession s, Long studentId, String studentName,
                                  String attendanceStatus, boolean onLeave) {
+        return toItem(s, studentId, studentName, attendanceStatus, onLeave, null);
+    }
+
+    private TimetableItem toItem(ClassSession s, Long studentId, String studentName,
+                                 String attendanceStatus, boolean onLeave,
+                                 String teacherAttendanceStatus) {
         SchoolClass c = s.getClazz();
         Room room = s.getRoom();
         return new TimetableItem(
@@ -640,7 +657,8 @@ public class ScheduleService {
                 studentId,
                 studentName,
                 attendanceStatus,
-                onLeave);
+                onLeave,
+                teacherAttendanceStatus);
     }
 
     private List<TimetableItem> filterByBranch(List<TimetableItem> items, Long branchId) {

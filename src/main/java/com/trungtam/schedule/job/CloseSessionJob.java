@@ -3,6 +3,7 @@ package com.trungtam.schedule.job;
 import com.trungtam.schedule.repository.ClassSessionRepository;
 import com.trungtam.schedule.entity.ClassSession;
 import com.trungtam.schedule.entity.SessionStatus;
+import com.trungtam.schedule.service.TeacherAttendanceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +32,7 @@ import java.util.List;
 public class CloseSessionJob {
 
     private final ClassSessionRepository sessionRepository;
+    private final TeacherAttendanceService teacherAttendanceService;
 
     @Value("${app.schedule.timezone:Asia/Ho_Chi_Minh}")
     private String timezone;
@@ -44,6 +46,8 @@ public class CloseSessionJob {
         List<ClassSession> past = sessionRepository.findPlannedPastEnd(today, nowTime);
         for (ClassSession s : past) {
             s.setStatus(SessionStatus.DONE);
+            // GV khong cham cong buoi da ket thuc -> danh VANG (idempotent)
+            teacherAttendanceService.markAbsentIfMissing(s);
         }
         if (!past.isEmpty()) {
             sessionRepository.saveAll(past);

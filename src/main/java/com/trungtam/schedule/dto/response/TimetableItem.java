@@ -24,6 +24,8 @@ public record TimetableItem(
         Long studentId,
         String studentName,
         String attendanceStatus,
-        boolean onLeave
+        boolean onLeave,
+        // chi view TEACHER: trang thai cham cong GV (DUNG_GIO|VAO_TRE|VANG), null neu chua cham
+        String teacherAttendanceStatus
 ) {
 }

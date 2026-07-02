@@ -5,6 +5,7 @@ import com.trungtam.room.dto.request.CreateRoomRequest;
 import com.trungtam.room.dto.request.RoomSearchParams;
 import com.trungtam.room.dto.response.RoomItem;
 import com.trungtam.room.dto.response.RoomPageResponse;
+import com.trungtam.room.dto.response.RoomQrResponse;
 import com.trungtam.room.service.RoomService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -61,5 +62,19 @@ public class RoomController {
             @PathVariable Long id,
             @Valid @RequestBody CreateRoomRequest request) {
         return ApiResponse.ok(roomService.update(id, request));
+    }
+
+    /** Payload QR de in dan tai phong (cham cong GV). */
+    @GetMapping("/{id}/qr")
+    @PreAuthorize("hasAuthority('ROOM:READ')")
+    public ApiResponse<RoomQrResponse> qr(@PathVariable Long id) {
+        return ApiResponse.ok(roomService.qrPayload(id));
+    }
+
+    /** Doi ma QR phong (khi lo / in lai). */
+    @PostMapping("/{id}/qr/reset")
+    @PreAuthorize("hasAuthority('ROOM:WRITE')")
+    public ApiResponse<RoomQrResponse> resetQr(@PathVariable Long id) {
+        return ApiResponse.ok(roomService.resetQr(id));
     }
 }

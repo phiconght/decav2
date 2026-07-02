@@ -6,6 +6,7 @@ import com.trungtam.room.dto.request.CreateRoomRequest;
 import com.trungtam.room.dto.request.RoomSearchParams;
 import com.trungtam.room.dto.response.RoomItem;
 import com.trungtam.room.dto.response.RoomPageResponse;
+import com.trungtam.room.dto.response.RoomQrResponse;
 import com.trungtam.room.entity.Branch;
 import com.trungtam.room.entity.Room;
 import com.trungtam.room.repository.BranchRepository;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
@@ -56,8 +58,22 @@ public class RoomService {
     @Transactional
     public RoomItem create(CreateRoomRequest req) {
         Room room = new Room();
+        room.setQrCode(UUID.randomUUID().toString());
         apply(room, req);
         return RoomItem.from(roomRepository.save(room));
+    }
+
+    /** Payload QR de in dan tai phong (cham cong GV). */
+    public RoomQrResponse qrPayload(Long id) {
+        return RoomQrResponse.from(findOrThrow(id));
+    }
+
+    /** Doi ma QR phong (khi lo / in lai): ma cu se khong con cham cong duoc. */
+    @Transactional
+    public RoomQrResponse resetQr(Long id) {
+        Room room = findOrThrow(id);
+        room.setQrCode(UUID.randomUUID().toString());
+        return RoomQrResponse.from(roomRepository.save(room));
     }
 
     @Transactional
