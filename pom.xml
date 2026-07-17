@@ -120,6 +120,15 @@
             <artifactId>poi-ooxml</artifactId>
             <version>5.3.0</version>
         </dependency>
+
+        <!-- Render cong thuc LaTeX trong PDF de thi — GPLv2 + linking exception
+             (da xac minh: github.com/opencollab/jlatexmath/LICENSE, an toan
+             link vao backend proprietary — xem SPEC_CongThucToan_NhapHangLoat.md §8.1) -->
+        <dependency>
+            <groupId>org.scilab.forge</groupId>
+            <artifactId>jlatexmath</artifactId>
+            <version>1.0.7</version>
+        </dependency>
     </dependencies>
 
     <build>

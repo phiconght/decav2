@@ -91,6 +91,7 @@ public class ExamPdfService {
     private final UserRepository userRepository;
     private final StudentParentRepository studentParentRepository;
     private final FileService fileService;
+    private final LatexPdfRenderer latexPdfRenderer;
 
     private BaseFont bfRegular;
     private BaseFont bfBold;
@@ -207,7 +208,7 @@ public class ExamPdfService {
             }
             int index = 1;
             for (ExamExercise ee : sorted) {
-                addQuestion(doc, ee, index++, variant);
+                addQuestion(doc, writer, ee, index++, variant);
             }
 
             if (variant == PdfVariant.DAP_AN) {
@@ -290,7 +291,7 @@ public class ExamPdfService {
 
     // ---- tung cau ----
 
-    private void addQuestion(Document doc, ExamExercise ee, int index, PdfVariant variant)
+    private void addQuestion(Document doc, PdfWriter writer, ExamExercise ee, int index, PdfVariant variant)
             throws DocumentException {
         Exercise ex = ee.getExercise();
         boolean reveal = variant == PdfVariant.DAP_AN;
@@ -306,20 +307,20 @@ public class ExamPdfService {
         q.add(new Chunk("Câu " + index + " (" + formatPoints(questionPoints(ee)) + " điểm — "
                 + typeLabel + "): ", bold(11)));
         if (ex.getQuestionText() != null && !ex.getQuestionText().isBlank()) {
-            q.add(new Chunk(ex.getQuestionText(), regular(11)));
+            latexPdfRenderer.renderMixed(writer, ex.getQuestionText(), regular(11)).forEach(q::add);
         }
         doc.add(q);
 
         addImage(doc, ex.getQuestionImage(), MAX_IMAGE_HEIGHT);
 
         switch (ex.getType()) {
-            case MULTIPLE_CHOICE -> addMultipleChoice(doc, ex, reveal);
-            case TRUE_FALSE -> addTrueFalse(doc, ee, ex, reveal);
-            case ESSAY -> addEssay(doc, ex, reveal);
+            case MULTIPLE_CHOICE -> addMultipleChoice(doc, writer, ex, reveal);
+            case TRUE_FALSE -> addTrueFalse(doc, writer, ee, ex, reveal);
+            case ESSAY -> addEssay(doc, writer, ex, reveal);
         }
     }
 
-    private void addMultipleChoice(Document doc, Exercise ex, boolean reveal)
+    private void addMultipleChoice(Document doc, PdfWriter writer, Exercise ex, boolean reveal)
             throws DocumentException {
         List<ChoiceOption> options = ex.getOptions().stream()
                 .sorted(Comparator.comparingInt(ChoiceOption::getSortOrder))
@@ -331,11 +332,13 @@ public class ExamPdfService {
             p.setIndentationLeft(16);
             p.setSpacingBefore(3);
             Font f = markCorrect ? bold(11) : regular(11);
-            String text = letter + ". " + (o.getText() != null ? o.getText() : "");
-            if (markCorrect) {
-                text += glyphOrFallback(" ✓", " (Đúng)");
+            p.add(new Chunk(letter + ". ", f));
+            if (o.getText() != null && !o.getText().isBlank()) {
+                latexPdfRenderer.renderMixed(writer, o.getText(), f).forEach(p::add);
             }
-            p.add(new Chunk(text, f));
+            if (markCorrect) {
+                p.add(new Chunk(glyphOrFallback(" ✓", " (Đúng)"), f));
+            }
             doc.add(p);
             addImage(doc, o.getImage(), MAX_OPTION_IMAGE_HEIGHT);
             letter++;
@@ -345,7 +348,7 @@ public class ExamPdfService {
         }
     }
 
-    private void addTrueFalse(Document doc, ExamExercise ee, Exercise ex, boolean reveal)
+    private void addTrueFalse(Document doc, PdfWriter writer, ExamExercise ee, Exercise ex, boolean reveal)
             throws DocumentException {
         List<TrueFalseItem> items = ex.getTrueFalseItems().stream()
                 .sorted(Comparator.comparingInt(TrueFalseItem::getSortOrder))
@@ -378,7 +381,11 @@ public class ExamPdfService {
         String box = glyphOrFallback("☐", "[  ]");
         String mark = glyphOrFallback("✓", "X");
         for (TrueFalseItem it : items) {
-            table.addCell(bodyCell(it.getText() != null ? it.getText() : "", Element.ALIGN_LEFT, regular(10)));
+            Phrase itemPhrase = new Phrase();
+            if (it.getText() != null && !it.getText().isBlank()) {
+                latexPdfRenderer.renderMixed(writer, it.getText(), regular(10)).forEach(itemPhrase::add);
+            }
+            table.addCell(bodyCellPhrase(itemPhrase, Element.ALIGN_LEFT));
             if (reveal) {
                 table.addCell(bodyCell(it.isAnswer() ? mark : "", Element.ALIGN_CENTER, bold(10)));
                 table.addCell(bodyCell(it.isAnswer() ? "" : mark, Element.ALIGN_CENTER, bold(10)));
@@ -398,7 +405,7 @@ public class ExamPdfService {
         doc.add(table);
     }
 
-    private void addEssay(Document doc, Exercise ex, boolean reveal) throws DocumentException {
+    private void addEssay(Document doc, PdfWriter writer, Exercise ex, boolean reveal) throws DocumentException {
         if (!reveal) {
             for (int i = 0; i < 8; i++) {
                 Paragraph line = new Paragraph(
@@ -415,7 +422,7 @@ public class ExamPdfService {
             p.setIndentationLeft(16);
             p.setSpacingBefore(4);
             p.add(new Chunk("Đáp án gợi ý: ", bold(11)));
-            p.add(new Chunk(ex.getEssayAnswer(), regular(11)));
+            latexPdfRenderer.renderMixed(writer, ex.getEssayAnswer(), regular(11)).forEach(p::add);
             doc.add(p);
         } else {
             doc.add(indented(new Paragraph("Đáp án gợi ý: (chấm tay)", oblique(10))));
@@ -613,6 +620,14 @@ public class ExamPdfService {
 
     private PdfPCell bodyCell(String text, int align, Font font) {
         PdfPCell cell = new PdfPCell(new Phrase(text, font));
+        cell.setHorizontalAlignment(align);
+        cell.setPadding(5);
+        return cell;
+    }
+
+    /** Nhu {@link #bodyCell} nhung nhan san 1 Phrase (dung cho o co the chua cong thuc LaTeX). */
+    private PdfPCell bodyCellPhrase(Phrase phrase, int align) {
+        PdfPCell cell = new PdfPCell(phrase);
         cell.setHorizontalAlignment(align);
         cell.setPadding(5);
         return cell;
