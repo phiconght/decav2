@@ -90,7 +90,12 @@ public class LatexPdfRenderer {
 
         PdfContentByte cb = writer.getDirectContent();
         PdfTemplate template = cb.createTemplate(w, h);
-        Graphics2D g2 = template.createGraphics(w, h);
+        // createGraphicsShapes (khong phai createGraphics): ve glyph bang outline
+        // vector that su, khong encode lai theo ma ky tu. JLaTeXMath dat ky hieu
+        // toan (mui ten, quan he, chu Hy Lap...) o vi tri ma trung ASCII trong
+        // font CM cua no (vd \rightarrow nam o code 33 = '!') — dung createGraphics
+        // (font mode) se in nham ra ky tu ASCII do. Xem SPEC_CongThucToan_NhapHangLoat.md.
+        Graphics2D g2 = template.createGraphicsShapes(w, h);
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         icon.paintIcon(null, g2, 0, 0);
         g2.dispose();
