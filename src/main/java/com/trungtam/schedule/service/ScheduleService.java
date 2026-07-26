@@ -13,6 +13,7 @@ import com.trungtam.notification.service.NotificationService;
 import com.trungtam.room.entity.Room;
 import com.trungtam.room.repository.HolidayRepository;
 import com.trungtam.room.repository.RoomRepository;
+import com.trungtam.schedule.dto.request.BulkAssignTopicRequest;
 import com.trungtam.schedule.dto.request.CreateManualSessionRequest;
 import com.trungtam.schedule.dto.request.CreateScheduleRequest;
 import com.trungtam.schedule.dto.request.TimetableQuery;
@@ -38,6 +39,8 @@ import com.trungtam.schedule.repository.SessionAttendanceRepository;
 import com.trungtam.schoolclass.entity.SchoolClass;
 import com.trungtam.schoolclass.repository.SchoolClassRepository;
 import com.trungtam.security.SecurityUtils;
+import com.trungtam.topic.entity.Topic;
+import com.trungtam.topic.repository.TopicRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -54,6 +57,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -77,6 +81,7 @@ public class ScheduleService {
     private final SessionAttendanceRepository attendanceRepository;
     private final ClassRosterRepository rosterRepository;
     private final SchoolClassRepository classRepository;
+    private final TopicRepository topicRepository;
     private final RoomRepository roomRepository;
     private final HolidayRepository holidayRepository;
     private final UserRepository userRepository;
@@ -277,9 +282,24 @@ public class ScheduleService {
 
     // ============================ BUOI HOC (§3.6.3) ============================
 
+    /**
+     * Buoi hoc cua 1 lop. {@code from}/{@code to} la TUY CHON:
+     * bo trong ca hai = lay TOAN BO buoi cua khoa (che do "Toan khoa" o man
+     * gan chuyen de — SPEC_KhoaHoc_NoiDung_Mobile.md §3.4e).
+     *
+     * <p>Phai re nhanh that su, KHONG duoc truyen null xuong
+     * {@code findByClazzIdAndSessionDateBetween}: {@code BETWEEN null AND null}
+     * tra ve rong chu khong phai "tat ca" — loi im lang.
+     */
     public List<SessionDetail> listSessions(Long classId, LocalDate from, LocalDate to) {
         findClassOrThrow(classId);
-        return sessionRepository.findByClazzIdAndSessionDateBetween(classId, from, to).stream()
+        List<ClassSession> sessions = (from == null && to == null)
+                ? sessionRepository.findByClazzId(classId)
+                : sessionRepository.findByClazzIdAndSessionDateBetween(
+                        classId,
+                        from != null ? from : LocalDate.of(1970, 1, 1),
+                        to != null ? to : LocalDate.of(2999, 12, 31));
+        return sessions.stream()
                 .sorted((a, b) -> {
                     int c = a.getSessionDate().compareTo(b.getSessionDate());
                     return c != 0 ? c : a.getStartTime().compareTo(b.getStartTime());
@@ -290,6 +310,51 @@ public class ScheduleService {
 
     public SessionDetail getSession(Long id) {
         return SessionDetail.from(findSessionOrThrow(id));
+    }
+
+    /**
+     * Gan (hoac go) chuyen de cho nhieu buoi hoc cua cung 1 khoa.
+     * {@code topicId = null} => go chuyen de. Tra ve so buoi da cap nhat.
+     *
+     * <p>TOAN BO-HOAC-KHONG-GI: validate het truoc khi ghi, va ca lo nam trong
+     * 1 transaction. Neu co bat ky sessionId nao khong thuoc khoa -> nem loi va
+     * KHONG ghi gi ca (nguoi dung can biet thao tac khong tron ven, khong duoc
+     * im lang bo qua).
+     *
+     * <p>Dung {@code saveAll} tren entity da nap chu KHONG dung JPQL bulk
+     * update: bulk update se BO QUA audit cua BaseEntity (@LastModifiedBy),
+     * mat dau vet ai gan chuyen de. Cac buoi da duoc nap san de validate nen
+     * saveAll chi phat sinh cac cau UPDATE theo lo, khong phai N+1.
+     */
+    @Transactional
+    public int bulkAssignTopic(Long classId, BulkAssignTopicRequest req) {
+        SchoolClass clazz = findClassOrThrow(classId);
+
+        Topic topic = null;
+        if (req.topicId() != null) {
+            topic = topicRepository.findById(req.topicId())
+                    .orElseThrow(() -> new AppException(ErrorCode.TOPIC_NOT_FOUND));
+            Long topicSubjectId = topic.getSubject() != null ? topic.getSubject().getId() : null;
+            Long classSubjectId = clazz.getSubject() != null ? clazz.getSubject().getId() : null;
+            if (topicSubjectId == null || !topicSubjectId.equals(classSubjectId)) {
+                throw new AppException(ErrorCode.TOPIC_SUBJECT_MISMATCH);
+            }
+        }
+
+        List<Long> ids = req.sessionIds().stream().filter(Objects::nonNull).distinct().toList();
+        List<ClassSession> sessions = sessionRepository.findAllById(ids);
+        // Thieu id (khong ton tai) HOAC co buoi cua lop khac -> deu la
+        // SESSION_NOT_IN_CLASS: tu goc nhin nguoi goi, id do khong thuoc khoa nay.
+        if (sessions.size() != ids.size()
+                || sessions.stream().anyMatch(s -> !s.getClazz().getId().equals(classId))) {
+            throw new AppException(ErrorCode.SESSION_NOT_IN_CLASS);
+        }
+
+        for (ClassSession s : sessions) {
+            s.setTopic(topic);
+        }
+        sessionRepository.saveAll(sessions);
+        return sessions.size();
     }
 
     @Transactional
@@ -307,6 +372,12 @@ public class ScheduleService {
         if (req.teacherId() != null) {
             s.setTeacher(resolveTeacher(req.teacherId()));
         }
+        // Ten buoi: chi la metadata noi dung, KHONG phai thay doi lich ->
+        // khong tinh vao `changed` (khong ban thong bao cho HV) va khong
+        // danh dau isManual (xem chu thich ben duoi).
+        if (req.title() != null) {
+            s.setTitle(req.title().isBlank() ? null : req.title().trim());
+        }
         validateSessionTime(s.getStartTime(), s.getDurationMinutes());
         // Kiem trung lai (loai tru chinh no)
         checkConflictsBlocking(s.getRoom() != null ? s.getRoom().getId() : null,
@@ -314,7 +385,13 @@ public class ScheduleService {
                 s.getSessionDate(), s.getStartTime(), s.getDurationMinutes(), s.getId());
         boolean changed = req.startTime() != null || req.durationMinutes() != null
                 || req.roomId() != null || req.teacherId() != null;
-        s.setManual(true);
+        // isManual = true nghia la "admin da chinh tay buoi nay" -> buoi bi LOAI
+        // khoi viec sinh lai lich khi sua quy tac (ClassSessionRepository
+        // .findFutureGeneratedBySchedule loc isManual = false). Vi vay chi danh
+        // dau khi that su doi thong tin LICH; sua moi ten buoi thi khong.
+        if (changed) {
+            s.setManual(true);
+        }
         sessionRepository.save(s);
         if (changed) {
             // Phan dac trung cho lan doi nay -> dedupeKey khac nhau giua cac lan doi.

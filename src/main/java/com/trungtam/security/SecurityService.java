@@ -87,6 +87,49 @@ public class SecurityService {
         return false;
     }
 
+    /**
+     * Ai duoc xem NOI DUNG cua 1 khoa hoc (buoi hoc, de thi, chuyen de):
+     * - ADMIN / EMPLOYEE: tat ca.
+     * - TEACHER / ASSISTANT: lop minh day.
+     * - STUDENT: lop minh dang hoc.
+     * - PARENT: lop ma it nhat 1 con dang hoc.
+     *
+     * <p>KHAC {@link #canAccessClass}: ham do danh cho bao cao CAP LOP (thong ke
+     * ca lop) nen chan STUDENT/PARENT. Ham nay danh cho noi dung khoa hoc ma
+     * chinh hoc vien/phu huynh phai xem duoc.
+     *
+     * <p>Dung chung cho {@code GET /classes/{id}/outline} va
+     * {@code GET /exams/by-class/{classId}} — xem
+     * SPEC_KhoaHoc_NoiDung_Mobile.md §3.3 va §3.5.
+     */
+    public boolean canViewClassContent(Long classId, Authentication authentication) {
+        if (authentication == null || classId == null) {
+            return false;
+        }
+        Set<String> roles = roles(authentication);
+        if (roles.contains("ROLE_ADMIN") || roles.contains("ROLE_EMPLOYEE")) {
+            return true;
+        }
+        Long myId = currentUserId(authentication);
+        if (myId == null) {
+            return false;
+        }
+        if ((roles.contains("ROLE_TEACHER") || roles.contains("ROLE_ASSISTANT"))
+                && schoolClassRepository.existsByIdAndTeachers_Id(classId, myId)) {
+            return true;
+        }
+        if (roles.contains("ROLE_STUDENT")
+                && schoolClassRepository.existsByIdAndStudents_Id(classId, myId)) {
+            return true;
+        }
+        if (roles.contains("ROLE_PARENT")) {
+            return studentParentRepository.findByParentIdOrderByIdAsc(myId).stream()
+                    .anyMatch(sp -> schoolClassRepository
+                            .existsByIdAndStudents_Id(classId, sp.getStudent().getId()));
+        }
+        return false;
+    }
+
     /** Id nguoi dung hien tai (resolve tu username trong principal). */
     public Long currentUserId(Authentication authentication) {
         if (authentication == null || authentication.getName() == null) {

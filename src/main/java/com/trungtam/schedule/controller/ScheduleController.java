@@ -7,6 +7,7 @@ import com.trungtam.schedule.dto.request.CreateManualSessionRequest;
 import com.trungtam.schedule.dto.request.CreateScheduleRequest;
 import com.trungtam.schedule.dto.request.TimetableQuery;
 import com.trungtam.schedule.dto.request.UpdateAttendanceRequest;
+import com.trungtam.schedule.dto.request.BulkAssignTopicRequest;
 import com.trungtam.schedule.dto.request.UpdateSessionRequest;
 import com.trungtam.schedule.dto.response.AttendanceItem;
 import com.trungtam.schedule.dto.response.GeneratePreview;
@@ -93,8 +94,8 @@ public class ScheduleController {
     @PreAuthorize("hasAuthority('CLASS:READ')")
     public ApiResponse<List<SessionDetail>> listSessions(
             @PathVariable Long classId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return ApiResponse.ok(scheduleService.listSessions(classId, from, to));
     }
 
@@ -113,6 +114,20 @@ public class ScheduleController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateSessionRequest request) {
         return ApiResponse.ok(scheduleService.updateSession(id, request));
+    }
+
+    /**
+     * Gan / go chuyen de cho nhieu buoi hoc cua 1 khoa.
+     * Body {@code topicId = null} => go chuyen de.
+     * Day cung la duong dung khi chi doi 1 buoi (truyen 1 phan tu sessionIds) —
+     * xem SPEC_KhoaHoc_NoiDung_Mobile.md §3.4a.
+     */
+    @PatchMapping("/classes/{classId}/sessions/bulk-topic")
+    @PreAuthorize("hasAuthority('CLASS:WRITE')")
+    public ApiResponse<Integer> bulkAssignTopic(
+            @PathVariable Long classId,
+            @Valid @RequestBody BulkAssignTopicRequest request) {
+        return ApiResponse.ok(scheduleService.bulkAssignTopic(classId, request));
     }
 
     @PostMapping("/sessions/{id}/cancel")

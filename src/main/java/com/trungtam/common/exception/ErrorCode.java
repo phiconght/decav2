@@ -80,6 +80,7 @@ public enum ErrorCode {
     // 404/400/409 — Schedule (lich hoc / buoi hoc / diem danh)
     SCHEDULE_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay quy tac lich"),
     SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay buoi hoc"),
+    SESSION_NOT_IN_CLASS(HttpStatus.BAD_REQUEST, "Buoi hoc khong thuoc khoa hoc"),
     WEEKLY_REQUIRES_DAY(HttpStatus.BAD_REQUEST, "Lich tuan phai chon thu trong tuan"),
     SESSION_TIME_INVALID(HttpStatus.BAD_REQUEST, "Gio bat dau cong thoi luong phai trong ngay (<= 24:00)"),
     ROOM_TIME_CONFLICT(HttpStatus.CONFLICT, "Phong da co buoi hoc trung gio"),

@@ -1,6 +1,7 @@
 package com.trungtam.schedule.repository;
 
 import com.trungtam.schedule.entity.ClassSession;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -17,7 +18,22 @@ public interface ClassSessionRepository
 
     boolean existsByClazzIdAndSessionDateAndStartTime(Long classId, LocalDate sessionDate, LocalTime startTime);
 
+    /**
+     * Buoi hoc cua 1 lop trong khoang ngay.
+     * EntityGraph nap san clazz/room/teacher/topic vi {@code SessionDetail.from}
+     * doc het cac quan he nay — khong co graph thi moi dong sinh them query (N+1).
+     */
+    @EntityGraph(attributePaths = {"clazz", "room", "teacher", "topic"})
     List<ClassSession> findByClazzIdAndSessionDateBetween(Long classId, LocalDate from, LocalDate to);
+
+    /**
+     * TOAN BO buoi hoc cua 1 lop (khong loc ngay) — dung cho che do "Toan khoa"
+     * o man gan chuyen de ben Admin (SPEC_KhoaHoc_NoiDung_Mobile.md §4.2) va cho
+     * API outline. KHONG dung findByClazzIdAndSessionDateBetween voi from/to =
+     * null: `BETWEEN null AND null` tra ve rong chu khong phai "tat ca".
+     */
+    @EntityGraph(attributePaths = {"clazz", "room", "teacher", "topic"})
+    List<ClassSession> findByClazzId(Long classId);
 
     // ===== HOC PHI (SPEC_ThanhToan) =====
 

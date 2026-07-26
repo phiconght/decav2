@@ -32,6 +32,7 @@ import com.trungtam.exercise.repository.ExerciseRepository;
 import com.trungtam.identity.entity.User;
 import com.trungtam.identity.repository.UserRepository;
 import com.trungtam.schoolclass.repository.SchoolClassRepository;
+import com.trungtam.security.SecurityService;
 import com.trungtam.subject.entity.Subject;
 import com.trungtam.subject.repository.SubjectRepository;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -69,6 +72,7 @@ public class ExamService {
     private final com.trungtam.exam.repository.ExamQuestionResultRepository examQuestionResultRepository;
     private final com.trungtam.topic.repository.TopicRepository topicRepository;
     private final CodeGeneratorService codeGeneratorService;
+    private final SecurityService securityService;
 
     public ExamPageResponse search(ExamSearchParams params) {
         Specification<Exam> spec = ExamSpec.build(params);
@@ -84,12 +88,42 @@ public class ExamService {
      * Danh sach de thi cua 1 lop, sap xep theo thoi diem phat de (publishAt)
      * tang dan; de chua dat lich (null) xep cuoi. Dung cho mobile hoc vien.
      */
+    /**
+     * De thi cua 1 lop, GIOI HAN theo nguoi goi.
+     *
+     * <p>Truoc day ham nay khong scope gi ca (du javadoc ghi "self-scoped"):
+     * bat ky nguoi dung da dang nhap nao cung liet ke duoc de thi cua BAT KY
+     * lop nao, ke ca de con nhap / chua toi gio phat. App mobile chi che o
+     * client nen API van lo. Xem SPEC_KhoaHoc_NoiDung_Mobile.md §3.5.
+     *
+     * <p>Nay chan 2 tang:
+     * <ol>
+     *   <li>Phai co quan he voi lop ({@code canViewClassContent}) — cung ham
+     *       guard dung cho {@code /classes/&#123;id&#125;/outline}.</li>
+     *   <li>Khong co {@code EXAM:READ} (HV/PH) thi chi thay de DA PHAT.</li>
+     * </ol>
+     */
     public List<ExamListItem> listExamsByClass(Long classId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (!securityService.canViewClassContent(classId, auth)) {
+            throw new AppException(ErrorCode.ACCESS_DENIED);
+        }
+        boolean seesUnpublished = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> "EXAM:READ".equals(a.getAuthority()));
+
         return examRepository.findByClassId(classId).stream()
+                .filter(e -> seesUnpublished || isPublishedForStudent(e))
                 .sorted(Comparator.comparing(Exam::getPublishAt,
                         Comparator.nullsLast(Comparator.naturalOrder())))
                 .map(ExamListItem::from)
                 .toList();
+    }
+
+    /** De HV/PH duoc thay: da ACTIVE va da toi moc phat hanh. */
+    private static boolean isPublishedForStudent(Exam e) {
+        return e.getStatus() == ExamStatus.ACTIVE
+                && e.getPublishAt() != null
+                && !e.getPublishAt().isAfter(Instant.now());
     }
 
     public ExamDetailResponse getById(Long id) {

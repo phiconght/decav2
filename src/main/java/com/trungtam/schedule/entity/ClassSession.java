@@ -4,6 +4,7 @@ import com.trungtam.common.entity.BaseEntity;
 import com.trungtam.identity.entity.User;
 import com.trungtam.room.entity.Room;
 import com.trungtam.schoolclass.entity.SchoolClass;
+import com.trungtam.topic.entity.Topic;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -56,6 +57,15 @@ public class ClassSession extends BaseEntity {
 
     @Column(name = "duration_minutes", nullable = false)
     private Integer durationMinutes;
+
+    /** Chuyen de cua buoi hoc — dung gom nhom o man chi tiet khoa hoc (Mobile). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "topic_id")
+    private Topic topic;
+
+    /** Ten buoi hoc, vd "Tinh don dieu cua ham so (P1)". Null = chi hien "Buoi n". */
+    @Column(name = "title", length = 255)
+    private String title;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "room_id")

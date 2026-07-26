@@ -26,4 +26,17 @@ public interface SessionAttendanceRepository extends JpaRepository<SessionAttend
     List<SessionAttendance> findByUserIdAndDateRange(@Param("userId") Long userId,
                                                      @Param("from") LocalDate from,
                                                      @Param("to") LocalDate to);
+
+    /**
+     * Diem danh cua 1 hoc vien tren MOI buoi cua 1 khoa — dung cho
+     * {@code GET /classes/{id}/outline} de dinh trang thai diem danh vao tung
+     * dong buoi hoc bang 1 query duy nhat (thay vi hoi tung buoi).
+     */
+    @Query("""
+        SELECT a FROM SessionAttendance a
+        WHERE a.user.id = :userId
+          AND a.session.clazz.id = :classId
+        """)
+    List<SessionAttendance> findByUserIdAndClassId(@Param("userId") Long userId,
+                                                   @Param("classId") Long classId);
 }

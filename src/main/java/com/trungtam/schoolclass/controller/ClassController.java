@@ -6,10 +6,12 @@ import com.trungtam.schoolclass.dto.request.ClassSearchParams;
 import com.trungtam.schoolclass.dto.request.CreateClassRequest;
 import com.trungtam.schoolclass.dto.request.UpdateClassStatusRequest;
 import com.trungtam.schoolclass.dto.response.ClassDetailResponse;
+import com.trungtam.schoolclass.dto.response.ClassOutlineResponse;
 import com.trungtam.schoolclass.dto.response.ClassListItem;
 import com.trungtam.schoolclass.dto.response.ClassPageResponse;
 import com.trungtam.schoolclass.dto.response.ClassRefItem;
 import com.trungtam.schoolclass.dto.response.StudentOptionResponse;
+import com.trungtam.schoolclass.service.ClassOutlineService;
 import com.trungtam.schoolclass.service.ClassService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,7 @@ import java.util.List;
 public class ClassController {
 
     private final ClassService classService;
+    private final ClassOutlineService classOutlineService;
 
     @GetMapping
     @PreAuthorize("hasAuthority('CLASS:READ')")
@@ -141,6 +144,25 @@ public class ClassController {
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<ClassListItem>> listMyClasses() {
         return ApiResponse.ok(classService.listMyClasses());
+    }
+
+    /**
+     * Cay noi dung khoa hoc: CHUYEN DE -> (buoi hoc + de thi).
+     * Nguon duy nhat cho man Chi tiet khoa hoc o Mobile.
+     *
+     * <p>{@code isAuthenticated()} + guard trong service, KHONG dung
+     * {@code CLASS:READ}: quyen do chi cap cho ADMIN/TEACHER/EMPLOYEE (V8),
+     * trong khi doi tuong chinh cua man nay la STUDENT/PARENT.
+     *
+     * <p>{@code studentId} — BAT BUOC voi PARENT (co the co nhieu con), bi bo
+     * qua voi STUDENT, tuy chon voi GV/admin. Xem SPEC §3.3.
+     */
+    @GetMapping("/{id}/outline")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<ClassOutlineResponse> outline(
+            @PathVariable Long id,
+            @RequestParam(required = false) Long studentId) {
+        return ApiResponse.ok(classOutlineService.outline(id, studentId));
     }
 
     /** Dropdown giao vien cho man xep lich (gate CLASS:READ). */

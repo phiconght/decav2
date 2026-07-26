@@ -19,7 +19,10 @@ public record SessionDetail(
         String teacherName,
         SessionStatus status,
         String cancelReason,
-        boolean isManual
+        boolean isManual,
+        Long topicId,
+        String topicName,
+        String title
 ) {
     public static SessionDetail from(ClassSession s) {
         return new SessionDetail(
@@ -35,6 +38,9 @@ public record SessionDetail(
                 s.getTeacher() != null ? s.getTeacher().getFullName() : null,
                 s.getStatus(),
                 s.getCancelReason(),
-                s.isManual());
+                s.isManual(),
+                s.getTopic() != null ? s.getTopic().getId() : null,
+                s.getTopic() != null ? s.getTopic().getName() : null,
+                s.getTitle());
     }
 }
