@@ -55,6 +55,10 @@ public class Exam extends BaseEntity {
     @JoinColumn(name = "topic_id")
     private com.trungtam.topic.entity.Topic topic;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "session_id")
+    private com.trungtam.schedule.entity.ClassSession session;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 20)
     private ExamType type;

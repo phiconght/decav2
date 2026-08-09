@@ -33,8 +33,10 @@ public class ClassReportController {
 
     @GetMapping("/{classId}/exam-averages")
     @PreAuthorize(CAN_ACCESS)
-    public ApiResponse<List<ClassExamAverageItem>> examAverages(@PathVariable Long classId) {
-        return ApiResponse.ok(classReportService.examAverages(classId));
+    public ApiResponse<List<ClassExamAverageItem>> examAverages(
+            @PathVariable Long classId,
+            @RequestParam(required = false) Long topicId) {
+        return ApiResponse.ok(classReportService.examAverages(classId, topicId));
     }
 
     @GetMapping("/{classId}/breakdowns")
@@ -42,7 +44,23 @@ public class ClassReportController {
     public ApiResponse<BreakdownResponse> breakdowns(
             @PathVariable Long classId,
             @RequestParam(required = false) Long topicId) {
-        return ApiResponse.ok(classReportService.breakdowns(classId, topicId));
+        return ApiResponse.ok(classReportService.breakdowns(classId, topicId, null));
+    }
+
+    @GetMapping("/{classId}/sessions/{sessionId}/exams")
+    @PreAuthorize(CAN_ACCESS)
+    public ApiResponse<List<ClassExamAverageItem>> sessionExams(
+            @PathVariable Long classId,
+            @PathVariable Long sessionId) {
+        return ApiResponse.ok(classReportService.sessionExams(classId, sessionId));
+    }
+
+    @GetMapping("/{classId}/sessions/{sessionId}/breakdowns")
+    @PreAuthorize(CAN_ACCESS)
+    public ApiResponse<BreakdownResponse> sessionBreakdowns(
+            @PathVariable Long classId,
+            @PathVariable Long sessionId) {
+        return ApiResponse.ok(classReportService.sessionBreakdowns(classId, sessionId));
     }
 
     @GetMapping("/{classId}/exams/{examId}/score-distribution")
@@ -71,8 +89,10 @@ public class ClassReportController {
 
     @GetMapping("/{classId}/attendance")
     @PreAuthorize(CAN_ACCESS)
-    public ApiResponse<ClassAttendanceReport> attendance(@PathVariable Long classId) {
-        return ApiResponse.ok(classReportService.attendance(classId));
+    public ApiResponse<ClassAttendanceReport> attendance(
+            @PathVariable Long classId,
+            @RequestParam(required = false) Long topicId) {
+        return ApiResponse.ok(classReportService.attendance(classId, topicId));
     }
 
     @GetMapping("/{classId}/students")

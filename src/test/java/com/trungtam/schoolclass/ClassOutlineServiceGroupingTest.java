@@ -92,7 +92,7 @@ class ClassOutlineServiceGroupingTest {
         when(examRepository.findByClassId(CLASS_ID)).thenReturn(List.of());
         // Chuyen can lay tu module Bao cao (da co logic + test rieng ben do).
         // O day chi can mot ket qua hop le; cac ca kiem tra viec GOM NHOM.
-        when(classReportService.attendance(CLASS_ID)).thenReturn(
+        when(classReportService.attendance(CLASS_ID, null)).thenReturn(
                 new ClassAttendanceReport(
                         new AttendanceSummary(0, 0, 0, 0, 0, 0, null, null),
                         List.of()));

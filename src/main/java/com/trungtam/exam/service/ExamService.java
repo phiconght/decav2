@@ -36,6 +36,7 @@ import com.trungtam.security.SecurityService;
 import com.trungtam.subject.entity.Subject;
 import com.trungtam.subject.repository.SubjectRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -58,6 +59,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -71,6 +73,7 @@ public class ExamService {
     private final ExamStudentRepository examStudentRepository;
     private final com.trungtam.exam.repository.ExamQuestionResultRepository examQuestionResultRepository;
     private final com.trungtam.topic.repository.TopicRepository topicRepository;
+    private final com.trungtam.schedule.repository.ClassSessionRepository classSessionRepository;
     private final CodeGeneratorService codeGeneratorService;
     private final SecurityService securityService;
 
@@ -348,6 +351,7 @@ public class ExamService {
             }
         }
         exam.setClasses(classes);
+        exam.setSession(resolveSession(req.sessionId(), classes));
 
         // rebuild students (SUPPLEMENTARY only)
         Set<User> students = new HashSet<>();
@@ -390,6 +394,31 @@ public class ExamService {
             throw new AppException(ErrorCode.TOPIC_SUBJECT_MISMATCH);
         }
         return topic;
+    }
+
+    /**
+     * Lay buoi hoc va dam bao buoi thuoc 1 trong cac lop cua de thi.
+     *
+     * <p>{@code exams.session_id} la 1 FK duy nhat, nhung {@code exam} co the
+     * gan cho NHIEU lop (N:N qua exam_classes). Neu de gan >1 lop, session
+     * chi khop voi 1 trong so do -> canh bao (khong chan) de nguoi tao de
+     * biet bao cao cap buoi se khong chinh xac cho cac lop con lai.
+     */
+    private com.trungtam.schedule.entity.ClassSession resolveSession(
+            Long sessionId, Set<com.trungtam.schoolclass.entity.SchoolClass> classes) {
+        if (sessionId == null) return null;
+        com.trungtam.schedule.entity.ClassSession session = classSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new AppException(ErrorCode.SESSION_NOT_IN_CLASS));
+        boolean belongsToAnyClass = classes.stream()
+                .anyMatch(c -> c.getId().equals(session.getClazz().getId()));
+        if (!belongsToAnyClass) {
+            throw new AppException(ErrorCode.SESSION_NOT_IN_CLASS);
+        }
+        if (classes.size() > 1) {
+            log.warn("Exam gan session {} nhung co {} lop — bao cao cap buoi chi dung cho lop {}",
+                    sessionId, classes.size(), session.getClazz().getId());
+        }
+        return session;
     }
 
     private Sort resolveSort(String field, String order) {

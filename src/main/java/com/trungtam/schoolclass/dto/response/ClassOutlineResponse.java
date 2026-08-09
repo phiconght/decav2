@@ -78,6 +78,8 @@ public record ClassOutlineResponse(
             Integer durationMinutes,
             /** Trang thai BAI LAM cua hoc vien dang xem (null neu khong xet HV nao). */
             String studentStatus,
-            BigDecimal score
+            BigDecimal score,
+            /** Diem toi da cua de — de FE to mau the theo ti le diem (score/maxScore). */
+            BigDecimal maxScore
     ) {}
 }

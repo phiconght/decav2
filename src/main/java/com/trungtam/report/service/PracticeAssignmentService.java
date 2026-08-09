@@ -129,8 +129,8 @@ public class PracticeAssignmentService {
         Topic topic = resolveTopic(req, sourceExam, studentId, classId, clazz);
 
         // Buoc 1: nguon danh gia = breakdown TOAN CHUONG
-        List<BreakdownProjection> diff = aggregationRepository.difficultyBreakdown(studentId, classId, topic.getId());
-        List<BreakdownProjection> byType = aggregationRepository.typeBreakdown(studentId, classId, topic.getId());
+        List<BreakdownProjection> diff = aggregationRepository.difficultyBreakdown(studentId, classId, topic.getId(), null, null);
+        List<BreakdownProjection> byType = aggregationRepository.typeBreakdown(studentId, classId, topic.getId(), null, null);
 
         int[] diffAlloc = difficultyAllocation(focus(diff));   // [easy, medium, hard]
         boolean mcHeavier = mcIsWeaker(byType);                // dang yeu hon chiem 7/10

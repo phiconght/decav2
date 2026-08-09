@@ -56,6 +56,47 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
     List<RecentExamProjection> historyInClass(@Param("studentId") Long studentId,
                                               @Param("classId") Long classId);
 
+    // ============ CAP BUOI HOC (§ Bao cao 3 cap do) ============
+
+    /** De thi cua 1 HV trong 1 buoi hoc cu the (exams.session_id). */
+    @Query(value = """
+            SELECT es.id AS examStudentId, e.id AS examId, e.code AS examCode, e.name AS examName,
+                   s.name AS subjectName, c.id AS classId, c.name AS className,
+                   es.submitted_at AS submittedAt, es.score AS score,
+                   (SELECT COALESCE(SUM(r.max_points),0) FROM exam_question_result r
+                     WHERE r.exam_student_id = es.id) AS maxScore
+            FROM exam_student es
+            JOIN exams e    ON e.id = es.exam_id
+            JOIN subjects s ON s.id = e.subject_id
+            JOIN classes c  ON c.id = :classId
+            WHERE es.user_id = :studentId AND es.status = 'DA_LAM' AND e.session_id = :sessionId
+            ORDER BY es.submitted_at DESC NULLS LAST
+            """, nativeQuery = true)
+    List<RecentExamProjection> sessionExamsForStudent(@Param("studentId") Long studentId,
+                                                       @Param("classId") Long classId,
+                                                       @Param("sessionId") Long sessionId);
+
+    /** TB lop cua cac de thuoc 1 buoi hoc cu the. */
+    @Query(value = """
+            SELECT e.id AS examId, e.name AS examName, e.publish_at AS publishAt,
+                   AVG(es.score) AS avgScore,
+                   (SELECT COALESCE(SUM(CASE
+                          WHEN EXISTS (SELECT 1 FROM exam_tf_item_scores ts WHERE ts.exam_exercise_id = ee.id)
+                          THEN (SELECT COALESCE(SUM(ts.points),0) FROM exam_tf_item_scores ts WHERE ts.exam_exercise_id = ee.id)
+                          ELSE COALESCE(ee.points,0) END),0)
+                    FROM exam_exercises ee WHERE ee.exam_id = e.id) AS maxScore,
+                   COUNT(es.id) AS submittedCount,
+                   COUNT(DISTINCT cs.user_id) AS assignedCount
+            FROM exams e
+            JOIN class_students cs ON cs.class_id = :classId
+            LEFT JOIN exam_student es ON es.exam_id = e.id AND es.user_id = cs.user_id AND es.status = 'DA_LAM'
+            WHERE e.session_id = :sessionId
+            GROUP BY e.id, e.name, e.publish_at
+            ORDER BY e.publish_at NULLS LAST, e.id
+            """, nativeQuery = true)
+    List<ClassExamAvgProjection> sessionExamAveragesForClass(@Param("classId") Long classId,
+                                                              @Param("sessionId") Long sessionId);
+
     // ============ HANG + TB LOP (1 de) ============
 
     @Query(value = """
@@ -90,10 +131,12 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
             JOIN exam_classes ec   ON ec.exam_id = e.id AND ec.class_id = :classId
             JOIN class_students cs ON cs.class_id = :classId
             LEFT JOIN exam_student es ON es.exam_id = e.id AND es.user_id = cs.user_id AND es.status = 'DA_LAM'
+            WHERE (CAST(:topicId AS BIGINT) IS NULL OR e.topic_id = :topicId)
             GROUP BY e.id, e.name, e.publish_at
             ORDER BY e.publish_at NULLS LAST, e.id
             """, nativeQuery = true)
-    List<ClassExamAvgProjection> examAveragesForClass(@Param("classId") Long classId);
+    List<ClassExamAvgProjection> examAveragesForClass(@Param("classId") Long classId,
+                                                       @Param("topicId") Long topicId);
 
     @Query(value = """
             SELECT e.id AS examId, e.name AS examName, e.publish_at AS publishAt,
@@ -107,10 +150,12 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
             JOIN exams e         ON e.id = es.exam_id
             JOIN exam_classes ec ON ec.exam_id = e.id AND ec.class_id = :classId
             WHERE es.user_id = :studentId AND es.status = 'DA_LAM'
+              AND (CAST(:topicId AS BIGINT) IS NULL OR e.topic_id = :topicId)
             ORDER BY e.publish_at NULLS LAST, es.submitted_at
             """, nativeQuery = true)
     List<ScoreTrendProjection> trendForStudentInClass(@Param("studentId") Long studentId,
-                                                      @Param("classId") Long classId);
+                                                      @Param("classId") Long classId,
+                                                      @Param("topicId") Long topicId);
 
     // ============ BREAKDOWN DUNG/SAI ============
 
@@ -129,11 +174,15 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
             JOIN exercises ex      ON ex.id = ee.exercise_id
             WHERE (CAST(:studentId AS BIGINT) IS NULL OR es.user_id = :studentId)
               AND (CAST(:topicId AS BIGINT) IS NULL OR ex.topic_id = :topicId)
+              AND (CAST(:sessionId AS BIGINT) IS NULL OR es.exam_id IN (SELECT id FROM exams WHERE session_id = :sessionId))
+              AND (CAST(:examId AS BIGINT) IS NULL OR es.exam_id = :examId)
             GROUP BY ex.difficulty
             """, nativeQuery = true)
     List<BreakdownProjection> difficultyBreakdown(@Param("studentId") Long studentId,
                                                   @Param("classId") Long classId,
-                                                  @Param("topicId") Long topicId);
+                                                  @Param("topicId") Long topicId,
+                                                  @Param("sessionId") Long sessionId,
+                                                  @Param("examId") Long examId);
 
     @Query(value = """
             SELECT ex.type AS bucketKey,
@@ -148,11 +197,15 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
             JOIN exercises ex      ON ex.id = ee.exercise_id
             WHERE (CAST(:studentId AS BIGINT) IS NULL OR es.user_id = :studentId)
               AND (CAST(:topicId AS BIGINT) IS NULL OR ex.topic_id = :topicId)
+              AND (CAST(:sessionId AS BIGINT) IS NULL OR es.exam_id IN (SELECT id FROM exams WHERE session_id = :sessionId))
+              AND (CAST(:examId AS BIGINT) IS NULL OR es.exam_id = :examId)
             GROUP BY ex.type
             """, nativeQuery = true)
     List<BreakdownProjection> typeBreakdown(@Param("studentId") Long studentId,
                                             @Param("classId") Long classId,
-                                            @Param("topicId") Long topicId);
+                                            @Param("topicId") Long topicId,
+                                            @Param("sessionId") Long sessionId,
+                                            @Param("examId") Long examId);
 
     // ============ PHO DIEM (§12) ============
 
@@ -165,6 +218,21 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
             FROM exam_exercises ee WHERE ee.exam_id = :examId
             """, nativeQuery = true)
     java.math.BigDecimal examMaxScore(@Param("examId") Long examId);
+
+    /**
+     * Diem toi da cua NHIEU de cung luc (1 query, tranh N+1 khi liet ke danh
+     * sach de — vd outline theo chuong can maxScore de to mau the theo
+     * ti le diem, giong RecentExamCards dang dung o noi khac).
+     */
+    @Query(value = """
+            SELECT ee.exam_id AS examId, COALESCE(SUM(CASE
+                   WHEN EXISTS (SELECT 1 FROM exam_tf_item_scores ts WHERE ts.exam_exercise_id = ee.id)
+                   THEN (SELECT COALESCE(SUM(ts.points),0) FROM exam_tf_item_scores ts WHERE ts.exam_exercise_id = ee.id)
+                   ELSE COALESCE(ee.points,0) END),0) AS maxScore
+            FROM exam_exercises ee WHERE ee.exam_id IN (:examIds)
+            GROUP BY ee.exam_id
+            """, nativeQuery = true)
+    List<ExamMaxScoreProjection> examMaxScoresForExams(@Param("examIds") List<Long> examIds);
 
     /** Histogram: chia [0..maxScore] thanh :bandCount khoang deu; dem HV DA_LAM moi khoang. */
     @Query(value = """
@@ -267,9 +335,11 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
             JOIN class_sessions ses ON ses.id = sa.session_id
                  AND ses.class_id = :classId AND ses.status = 'DONE'
             WHERE sa.user_id = :studentId
+              AND (CAST(:topicId AS BIGINT) IS NULL OR ses.topic_id = :topicId)
             """, nativeQuery = true)
     AttendanceProjection attendanceForStudent(@Param("studentId") Long studentId,
-                                              @Param("classId") Long classId);
+                                              @Param("classId") Long classId,
+                                              @Param("topicId") Long topicId);
 
     @Query(value = """
             SELECT to_char(ses.session_date, 'YYYY-MM') AS month,
@@ -281,11 +351,13 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
             JOIN class_sessions ses ON ses.id = sa.session_id
                  AND ses.class_id = :classId AND ses.status = 'DONE'
             WHERE sa.user_id = :studentId
+              AND (CAST(:topicId AS BIGINT) IS NULL OR ses.topic_id = :topicId)
             GROUP BY to_char(ses.session_date, 'YYYY-MM')
             ORDER BY 1
             """, nativeQuery = true)
     List<AttendanceMonthProjection> attendanceByMonthForStudent(@Param("studentId") Long studentId,
-                                                                @Param("classId") Long classId);
+                                                                @Param("classId") Long classId,
+                                                                @Param("topicId") Long topicId);
 
     @Query(value = """
             SELECT COUNT(*) AS totalSessions,
@@ -298,8 +370,10 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
             JOIN class_sessions ses ON ses.id = sa.session_id
                  AND ses.class_id = :classId AND ses.status = 'DONE'
             JOIN class_students cs ON cs.class_id = :classId AND cs.user_id = sa.user_id
+            WHERE (CAST(:topicId AS BIGINT) IS NULL OR ses.topic_id = :topicId)
             """, nativeQuery = true)
-    AttendanceProjection attendanceForClass(@Param("classId") Long classId);
+    AttendanceProjection attendanceForClass(@Param("classId") Long classId,
+                                            @Param("topicId") Long topicId);
 
     @Query(value = """
             SELECT to_char(ses.session_date, 'YYYY-MM') AS month,
@@ -311,10 +385,12 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
             JOIN class_sessions ses ON ses.id = sa.session_id
                  AND ses.class_id = :classId AND ses.status = 'DONE'
             JOIN class_students cs ON cs.class_id = :classId AND cs.user_id = sa.user_id
+            WHERE (CAST(:topicId AS BIGINT) IS NULL OR ses.topic_id = :topicId)
             GROUP BY to_char(ses.session_date, 'YYYY-MM')
             ORDER BY 1
             """, nativeQuery = true)
-    List<AttendanceMonthProjection> attendanceByMonthForClass(@Param("classId") Long classId);
+    List<AttendanceMonthProjection> attendanceByMonthForClass(@Param("classId") Long classId,
+                                                               @Param("topicId") Long topicId);
 
     @Query(value = """
             SELECT sa.user_id AS studentId, COUNT(*) AS total,
@@ -327,6 +403,54 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
             GROUP BY sa.user_id
             """, nativeQuery = true)
     List<AttendanceRateProjection> attendanceRatePerStudent(@Param("classId") Long classId);
+
+    // ============ BANG PHAN TICH TU DONG (Analysis Card) ============
+
+    /**
+     * Diem TB cua MOI HV trong lop, theo TUNG chuong (topic cua DE THI, khac
+     * topic cua CAU HOI dung trong topicMastery/breakdown) — 1 query cho ca
+     * lop x ca chuong, de tinh rank tung chuong trong Java khong N+1.
+     */
+    @Query(value = """
+            SELECT e.topic_id AS topicId, t.name AS topicName, t.sort_order AS sortOrder,
+                   es.user_id AS studentId, AVG(es.score) AS avgScore
+            FROM exam_student es
+            JOIN exams e            ON e.id = es.exam_id AND e.topic_id IS NOT NULL
+            JOIN exam_classes ec    ON ec.exam_id = e.id AND ec.class_id = :classId
+            JOIN class_students cs  ON cs.class_id = :classId AND cs.user_id = es.user_id
+            JOIN topics t           ON t.id = e.topic_id
+            WHERE es.status = 'DA_LAM'
+            GROUP BY e.topic_id, t.name, t.sort_order, es.user_id
+            """, nativeQuery = true)
+    List<StudentTopicAvgProjection> studentTopicAverages(@Param("classId") Long classId);
+
+    /**
+     * Breakdown cheo LOAI CAU x DO KHO cho 1 HV (khac difficultyBreakdown/
+     * typeBreakdown von nhom rieng tung chieu) — dung sinh cau nhan dinh
+     * nang luc "Dang bai X lam tot muc Y, can cai thien muc Z".
+     */
+    @Query(value = """
+            SELECT ex.type AS examType, ex.difficulty AS difficulty,
+                   COUNT(*) FILTER (WHERE r.correct IS TRUE)  AS correctCount,
+                   COUNT(*) FILTER (WHERE r.correct IS FALSE) AS incorrectCount,
+                   COUNT(*) FILTER (WHERE r.correct IS NULL)  AS ungradedCount
+            FROM exam_question_result r
+            JOIN exam_student es   ON es.id = r.exam_student_id AND es.status = 'DA_LAM'
+            JOIN exam_classes ec   ON ec.exam_id = es.exam_id AND ec.class_id = :classId
+            JOIN class_students cs ON cs.class_id = :classId AND cs.user_id = es.user_id
+            JOIN exam_exercises ee ON ee.id = r.exam_exercise_id
+            JOIN exercises ex      ON ex.id = ee.exercise_id
+            WHERE es.user_id = :studentId
+              AND (CAST(:topicId AS BIGINT) IS NULL OR ex.topic_id = :topicId)
+              AND (CAST(:sessionId AS BIGINT) IS NULL OR es.exam_id IN (SELECT id FROM exams WHERE session_id = :sessionId))
+              AND (CAST(:examId AS BIGINT) IS NULL OR es.exam_id = :examId)
+            GROUP BY ex.type, ex.difficulty
+            """, nativeQuery = true)
+    List<TypeDifficultyProjection> breakdownByTypeAndDifficulty(@Param("studentId") Long studentId,
+                                                                @Param("classId") Long classId,
+                                                                @Param("topicId") Long topicId,
+                                                                @Param("sessionId") Long sessionId,
+                                                                @Param("examId") Long examId);
 
     // ============ PROJECTIONS ============
 
@@ -422,6 +546,27 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
     interface ScoreBandProjection {
         Integer getIndex();
         Long getCount();
+    }
+
+    interface ExamMaxScoreProjection {
+        Long getExamId();
+        BigDecimal getMaxScore();
+    }
+
+    interface StudentTopicAvgProjection {
+        Long getTopicId();
+        String getTopicName();
+        Integer getSortOrder();
+        Long getStudentId();
+        BigDecimal getAvgScore();
+    }
+
+    interface TypeDifficultyProjection {
+        String getExamType();
+        String getDifficulty();
+        Long getCorrectCount();
+        Long getIncorrectCount();
+        Long getUngradedCount();
     }
 
     interface ScoreStatsProjection {

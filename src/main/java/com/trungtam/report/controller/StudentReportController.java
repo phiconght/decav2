@@ -3,12 +3,16 @@ package com.trungtam.report.controller;
 import com.trungtam.common.dto.ApiResponse;
 import com.trungtam.report.dto.request.AssignPracticeRequest;
 import com.trungtam.report.dto.response.BreakdownResponse;
+import com.trungtam.report.dto.response.ChapterAnalysisResponse;
 import com.trungtam.report.dto.response.ChildOption;
+import com.trungtam.report.dto.response.ExamAnalysisResponse;
 import com.trungtam.report.dto.response.ExamReportDetail;
 import com.trungtam.report.dto.response.ExamScoreDistribution;
 import com.trungtam.report.dto.response.PracticeAssignmentResponse;
 import com.trungtam.report.dto.response.RecentExamItem;
+import com.trungtam.report.dto.response.ReportAnalysisResponse;
 import com.trungtam.report.dto.response.ScoreTrendPoint;
+import com.trungtam.report.dto.response.SessionAnalysisResponse;
 import com.trungtam.report.dto.response.StudentAttendanceReport;
 import com.trungtam.report.dto.response.StudentClassOption;
 import com.trungtam.report.dto.response.StudentClassSummaryResponse;
@@ -72,8 +76,9 @@ public class StudentReportController {
     @PreAuthorize(CAN_VIEW)
     public ApiResponse<List<ScoreTrendPoint>> scoreTrend(
             @PathVariable Long studentId,
-            @PathVariable Long classId) {
-        return ApiResponse.ok(studentReportService.scoreTrend(studentId, classId));
+            @PathVariable Long classId,
+            @RequestParam(required = false) Long topicId) {
+        return ApiResponse.ok(studentReportService.scoreTrend(studentId, classId, topicId));
     }
 
     @GetMapping("/students/{studentId}/classes/{classId}/breakdowns")
@@ -82,7 +87,7 @@ public class StudentReportController {
             @PathVariable Long studentId,
             @PathVariable Long classId,
             @RequestParam(required = false) Long topicId) {
-        return ApiResponse.ok(studentReportService.breakdowns(studentId, classId, topicId));
+        return ApiResponse.ok(studentReportService.breakdowns(studentId, classId, topicId, null, null));
     }
 
     @GetMapping("/students/{studentId}/exams/{examId}/score-distribution")
@@ -106,6 +111,36 @@ public class StudentReportController {
         return ApiResponse.ok(studentReportService.courseSpectrum(studentId, classId, bandCount));
     }
 
+    /** Bang "Phan tich tu dong" cho 1 CHUONG (§ Phan C). */
+    @GetMapping("/students/{studentId}/classes/{classId}/topics/{topicId}/analysis")
+    @PreAuthorize(CAN_VIEW)
+    public ApiResponse<ChapterAnalysisResponse> chapterAnalysis(
+            @PathVariable Long studentId,
+            @PathVariable Long classId,
+            @PathVariable Long topicId) {
+        return ApiResponse.ok(studentReportService.chapterAnalysis(studentId, classId, topicId));
+    }
+
+    /** Bang "Phan tich tu dong" cho 1 BUOI HOC (§ Phan C). */
+    @GetMapping("/students/{studentId}/classes/{classId}/sessions/{sessionId}/analysis")
+    @PreAuthorize(CAN_VIEW)
+    public ApiResponse<SessionAnalysisResponse> sessionAnalysis(
+            @PathVariable Long studentId,
+            @PathVariable Long classId,
+            @PathVariable Long sessionId) {
+        return ApiResponse.ok(studentReportService.sessionAnalysis(studentId, classId, sessionId));
+    }
+
+    /** Bang "Phan tich tu dong" cho 1 BAI THI (§ Phan C). */
+    @GetMapping("/students/{studentId}/exams/{examId}/analysis")
+    @PreAuthorize(CAN_VIEW)
+    public ApiResponse<ExamAnalysisResponse> examAnalysis(
+            @PathVariable Long studentId,
+            @PathVariable Long examId,
+            @RequestParam Long classId) {
+        return ApiResponse.ok(studentReportService.examAnalysis(studentId, examId, classId));
+    }
+
     @GetMapping("/students/{studentId}/classes/{classId}/topic-mastery")
     @PreAuthorize(CAN_VIEW)
     public ApiResponse<List<TopicMasteryItem>> topicMastery(
@@ -118,8 +153,27 @@ public class StudentReportController {
     @PreAuthorize(CAN_VIEW)
     public ApiResponse<StudentAttendanceReport> attendance(
             @PathVariable Long studentId,
-            @PathVariable Long classId) {
-        return ApiResponse.ok(studentReportService.attendance(studentId, classId));
+            @PathVariable Long classId,
+            @RequestParam(required = false) Long topicId) {
+        return ApiResponse.ok(studentReportService.attendance(studentId, classId, topicId));
+    }
+
+    @GetMapping("/students/{studentId}/classes/{classId}/sessions/{sessionId}/exams")
+    @PreAuthorize(CAN_VIEW)
+    public ApiResponse<List<RecentExamItem>> sessionExams(
+            @PathVariable Long studentId,
+            @PathVariable Long classId,
+            @PathVariable Long sessionId) {
+        return ApiResponse.ok(studentReportService.sessionExams(studentId, classId, sessionId));
+    }
+
+    @GetMapping("/students/{studentId}/classes/{classId}/sessions/{sessionId}/breakdowns")
+    @PreAuthorize(CAN_VIEW)
+    public ApiResponse<BreakdownResponse> sessionBreakdowns(
+            @PathVariable Long studentId,
+            @PathVariable Long classId,
+            @PathVariable Long sessionId) {
+        return ApiResponse.ok(studentReportService.sessionBreakdowns(studentId, classId, sessionId));
     }
 
     @GetMapping("/students/{studentId}/classes/{classId}/summary")
@@ -128,6 +182,15 @@ public class StudentReportController {
             @PathVariable Long studentId,
             @PathVariable Long classId) {
         return ApiResponse.ok(studentReportService.summary(studentId, classId));
+    }
+
+    /** Bang "Phan tich tu dong" — dung rieng cho Mobile (tranh goi summary() nang). */
+    @GetMapping("/students/{studentId}/classes/{classId}/analysis")
+    @PreAuthorize(CAN_VIEW)
+    public ApiResponse<ReportAnalysisResponse> analysis(
+            @PathVariable Long studentId,
+            @PathVariable Long classId) {
+        return ApiResponse.ok(studentReportService.analysis(studentId, classId));
     }
 
     @GetMapping("/students/{studentId}/classes")

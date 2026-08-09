@@ -46,9 +46,20 @@ public class ReportCommentService {
     private final UserRepository userRepository;
 
     public List<CommentItem> list(Long studentId, Long classId, Long examStudentId) {
-        List<ReportComment> rows = examStudentId != null
-                ? reportCommentRepository.findByExamStudentIdOrderByCreatedAtDesc(examStudentId)
-                : reportCommentRepository.findByStudentIdAndSchoolClassIdOrderByCreatedAtDesc(studentId, classId);
+        List<ReportComment> rows;
+        if (examStudentId != null) {
+            // @PreAuthorize chi kiem tra #studentId — neu khong doi chieu o day,
+            // truyen dung studentId cua minh + examStudentId cua HV khac se doc
+            // duoc nhan xet cua HV do (IDOR).
+            ExamStudent es = examStudentRepository.findById(examStudentId)
+                    .orElseThrow(() -> new AppException(ErrorCode.REPORT_COMMENT_NOT_FOUND));
+            if (!es.getUser().getId().equals(studentId)) {
+                throw new AppException(ErrorCode.ACCESS_DENIED);
+            }
+            rows = reportCommentRepository.findByExamStudentIdOrderByCreatedAtDesc(examStudentId);
+        } else {
+            rows = reportCommentRepository.findByStudentIdAndSchoolClassIdOrderByCreatedAtDesc(studentId, classId);
+        }
 
         boolean studentSelf = isStudentViewingSelf(studentId);
         return rows.stream()

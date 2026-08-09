@@ -7,6 +7,7 @@ import com.trungtam.exam.entity.ExamStatus;
 import com.trungtam.exam.entity.ExamStudent;
 import com.trungtam.exam.repository.ExamRepository;
 import com.trungtam.exam.repository.ExamStudentRepository;
+import com.trungtam.report.repository.ReportAggregationRepository;
 import com.trungtam.report.service.ClassReportService;
 import com.trungtam.report.service.StudentReportService;
 import com.trungtam.schedule.entity.AttendanceStatus;
@@ -68,6 +69,7 @@ public class ClassOutlineService {
     // hoc co the hien % khac man Bao cao cho cung 1 lop (SPEC §3.3 C2).
     private final StudentReportService studentReportService;
     private final ClassReportService classReportService;
+    private final ReportAggregationRepository aggregationRepository;
 
     public ClassOutlineResponse outline(Long classId, Long studentIdParam) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -103,6 +105,15 @@ public class ClassOutlineService {
                 : examStudentRepository.findActiveForStudentInClass(studentId, classId).stream()
                         .collect(Collectors.toMap(es -> es.getExam().getId(), es -> es, (a, b) -> a));
 
+        // Diem toi da cua MOI de trong 1 query (tranh N+1) — de FE to mau
+        // the theo ti le diem, giong RecentExamCards dang dung o cac man khac.
+        Map<Long, java.math.BigDecimal> maxScoreByExam = exams.isEmpty()
+                ? Map.of()
+                : aggregationRepository.examMaxScoresForExams(exams.stream().map(Exam::getId).toList()).stream()
+                        .collect(Collectors.toMap(
+                                ReportAggregationRepository.ExamMaxScoreProjection::getExamId,
+                                ReportAggregationRepository.ExamMaxScoreProjection::getMaxScore));
+
         // ---- gom nhom theo chuyen de ----
         // LinkedHashMap giu thu tu chen; sap xep lai o buoc cuoi.
         Map<Long, GroupAcc> byTopic = new LinkedHashMap<>();
@@ -124,7 +135,7 @@ public class ClassOutlineService {
                     topicId,
                     e.getTopic() != null ? e.getTopic().getName() : null,
                     e.getTopic() != null ? e.getTopic().getSortOrder() : null));
-            g.exams.add(toExam(e, esByExam.get(e.getId())));
+            g.exams.add(toExam(e, esByExam.get(e.getId()), maxScoreByExam.get(e.getId())));
         }
 
         List<OutlineTopicGroup> groups = byTopic.values().stream()
@@ -191,10 +202,10 @@ public class ClassOutlineService {
         Double rate;
         String scope;
         if (studentId != null) {
-            rate = studentReportService.attendance(studentId, classId).summary().attendanceRate();
+            rate = studentReportService.attendance(studentId, classId, null).summary().attendanceRate();
             scope = "STUDENT";
         } else {
-            rate = classReportService.attendance(classId).summary().attendanceRate();
+            rate = classReportService.attendance(classId, null).summary().attendanceRate();
             scope = "CLASS";
         }
         // Chua tinh duoc (chua co buoi DONE nao) -> tra null ca hai, KHONG tra
@@ -227,7 +238,7 @@ public class ClassOutlineService {
                 0);
     }
 
-    private OutlineExam toExam(Exam e, ExamStudent es) {
+    private OutlineExam toExam(Exam e, ExamStudent es, java.math.BigDecimal maxScore) {
         return new OutlineExam(
                 e.getId(),
                 e.getCode(),
@@ -238,7 +249,8 @@ public class ClassOutlineService {
                 e.getEndAt(),
                 e.getDurationMinutes(),
                 es != null && es.getStatus() != null ? es.getStatus().name() : null,
-                es != null ? es.getScore() : null);
+                es != null ? es.getScore() : null,
+                maxScore);
     }
 
     private static boolean isPublished(Exam e) {

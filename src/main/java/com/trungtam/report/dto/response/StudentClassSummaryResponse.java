@@ -11,7 +11,8 @@ public record StudentClassSummaryResponse(
         BreakdownResponse breakdown,
         List<TopicMasteryItem> topicMastery,
         StudentAttendanceReport attendance,
-        List<CommentItem> comments
+        List<CommentItem> comments,
+        ReportAnalysisResponse analysis
 ) {
     public record StudentInfo(
             Long id,

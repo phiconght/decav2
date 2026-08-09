@@ -28,12 +28,13 @@ public class ClassReportService {
 
     private final ReportAggregationRepository aggregationRepository;
     private final ExamRepository examRepository;
+    private final com.trungtam.schedule.repository.ClassSessionRepository classSessionRepository;
 
     @Value("${app.report.score-band-count:10}")
     private int bandCount;
 
-    public List<ClassExamAverageItem> examAverages(Long classId) {
-        return aggregationRepository.examAveragesForClass(classId).stream()
+    public List<ClassExamAverageItem> examAverages(Long classId, Long topicId) {
+        return aggregationRepository.examAveragesForClass(classId, topicId).stream()
                 .map(p -> new ClassExamAverageItem(
                         p.getExamId(), p.getExamName(), ReportMapper.instant(p.getPublishAt()),
                         ReportMapper.scale(p.getAvgScore()), ReportMapper.scale(p.getMaxScore()),
@@ -41,11 +42,37 @@ public class ClassReportService {
                 .toList();
     }
 
-    /** Breakdown ca lop theo chuong (topicId nullable = toan khoa). §11. */
-    public BreakdownResponse breakdowns(Long classId, Long topicId) {
+    /**
+     * Breakdown ca lop theo chuong (topicId nullable = toan khoa) hoac theo
+     * buoi hoc (sessionId nullable). §11 + bao cao cap buoi.
+     */
+    public BreakdownResponse breakdowns(Long classId, Long topicId, Long sessionId) {
         return ReportMapper.breakdown(
-                aggregationRepository.difficultyBreakdown(null, classId, topicId),
-                aggregationRepository.typeBreakdown(null, classId, topicId));
+                aggregationRepository.difficultyBreakdown(null, classId, topicId, sessionId, null),
+                aggregationRepository.typeBreakdown(null, classId, topicId, sessionId, null));
+    }
+
+    /** Bao cao cap buoi hoc cho ca lop (§ Bao cao 3 cap do). */
+    public List<ClassExamAverageItem> sessionExams(Long classId, Long sessionId) {
+        requireSessionInClass(sessionId, classId);
+        return aggregationRepository.sessionExamAveragesForClass(classId, sessionId).stream()
+                .map(p -> new ClassExamAverageItem(
+                        p.getExamId(), p.getExamName(), ReportMapper.instant(p.getPublishAt()),
+                        ReportMapper.scale(p.getAvgScore()), ReportMapper.scale(p.getMaxScore()),
+                        ReportMapper.nz(p.getSubmittedCount()), ReportMapper.nz(p.getAssignedCount())))
+                .toList();
+    }
+
+    public BreakdownResponse sessionBreakdowns(Long classId, Long sessionId) {
+        requireSessionInClass(sessionId, classId);
+        return breakdowns(classId, null, sessionId);
+    }
+
+    private void requireSessionInClass(Long sessionId, Long classId) {
+        if (!classSessionRepository.existsByIdAndClazzId(sessionId, classId)) {
+            throw new com.trungtam.common.exception.AppException(
+                    com.trungtam.common.exception.ErrorCode.SESSION_NOT_IN_CLASS);
+        }
     }
 
     /** Pho diem TONG cua khoa (§12.2) — bucket diem TB HV, khong danh dau. */
@@ -62,9 +89,17 @@ public class ClassReportService {
 
     /** Pho diem 1 bai thi cua ca lop (§12.1) — khong danh dau HV. bandCount tuy chon. */
     public ExamScoreDistribution scoreDistribution(Long classId, Long examId, int nBands) {
+        var exam = examRepository.findById(examId)
+                .orElseThrow(() -> new com.trungtam.common.exception.AppException(
+                        com.trungtam.common.exception.ErrorCode.EXAM_NOT_FOUND));
+        boolean examInClass = exam.getClasses().stream().anyMatch(c -> c.getId().equals(classId));
+        if (!examInClass) {
+            throw new com.trungtam.common.exception.AppException(
+                    com.trungtam.common.exception.ErrorCode.EXAM_NOT_IN_CLASS);
+        }
         int n = Math.max(5, Math.min(nBands, 60));
         BigDecimal maxScore = aggregationRepository.examMaxScore(examId);
-        String examName = examRepository.findById(examId).map(e -> e.getName()).orElse(null);
+        String examName = exam.getName();
         List<ScoreBandProjection> bands = maxScore != null && maxScore.signum() > 0
                 ? aggregationRepository.scoreDistribution(examId, classId, maxScore, n)
                 : List.of();
@@ -79,10 +114,10 @@ public class ClassReportService {
                 .toList();
     }
 
-    public ClassAttendanceReport attendance(Long classId) {
+    public ClassAttendanceReport attendance(Long classId, Long topicId) {
         return new ClassAttendanceReport(
-                ReportMapper.attendance(aggregationRepository.attendanceForClass(classId)),
-                aggregationRepository.attendanceByMonthForClass(classId).stream()
+                ReportMapper.attendance(aggregationRepository.attendanceForClass(classId, topicId)),
+                aggregationRepository.attendanceByMonthForClass(classId, topicId).stream()
                         .map(ReportMapper::month).toList());
     }
 

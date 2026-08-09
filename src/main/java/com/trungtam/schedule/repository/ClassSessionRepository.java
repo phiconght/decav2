@@ -18,6 +18,8 @@ public interface ClassSessionRepository
 
     boolean existsByClazzIdAndSessionDateAndStartTime(Long classId, LocalDate sessionDate, LocalTime startTime);
 
+    boolean existsByIdAndClazzId(Long id, Long classId);
+
     /**
      * Buoi hoc cua 1 lop trong khoang ngay.
      * EntityGraph nap san clazz/room/teacher/topic vi {@code SessionDetail.from}

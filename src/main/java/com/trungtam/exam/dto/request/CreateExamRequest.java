@@ -14,6 +14,7 @@ public record CreateExamRequest(
         @NotBlank String name,
         @NotNull Long subjectId,
         Long topicId,
+        Long sessionId,
         @NotNull ExamType type,
         @Positive Integer durationMinutes,
         Instant publishAt,
