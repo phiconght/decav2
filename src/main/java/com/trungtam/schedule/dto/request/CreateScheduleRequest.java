@@ -20,6 +20,8 @@ public record CreateScheduleRequest(
         @NotNull @Positive Integer durationMinutes,
         Long roomId,
         Long teacherId,
-        Boolean active
+        Boolean active,
+        /** Link Zoom mac dinh cho buoi SINH MOI tu quy tac nay (khong bat buoc). */
+        String defaultZoomUrl
 ) {
 }

@@ -13,11 +13,13 @@ import com.trungtam.notification.service.NotificationService;
 import com.trungtam.room.entity.Room;
 import com.trungtam.room.repository.HolidayRepository;
 import com.trungtam.room.repository.RoomRepository;
+import com.trungtam.schedule.dto.request.AssignSessionVideosRequest;
 import com.trungtam.schedule.dto.request.BulkAssignTopicRequest;
 import com.trungtam.schedule.dto.request.CreateManualSessionRequest;
 import com.trungtam.schedule.dto.request.CreateScheduleRequest;
 import com.trungtam.schedule.dto.request.TimetableQuery;
 import com.trungtam.schedule.dto.request.UpdateSessionRequest;
+import com.trungtam.schedule.dto.request.UpsertZoomLinkRequest;
 import com.trungtam.schedule.dto.response.AttendanceItem;
 import com.trungtam.schedule.dto.response.ConflictLine;
 import com.trungtam.schedule.dto.response.GeneratePreview;
@@ -25,25 +27,36 @@ import com.trungtam.schedule.dto.response.QrTokenResponse;
 import com.trungtam.schedule.dto.response.ScheduleItem;
 import com.trungtam.schedule.dto.response.SessionDetail;
 import com.trungtam.schedule.dto.response.SessionPreviewLine;
+import com.trungtam.schedule.dto.response.SessionVideoItem;
 import com.trungtam.schedule.dto.response.TimetableItem;
+import com.trungtam.schedule.dto.response.ZoomLinkItem;
 import com.trungtam.schedule.entity.AttendanceStatus;
 import com.trungtam.schedule.entity.ClassSchedule;
 import com.trungtam.schedule.entity.ClassSession;
 import com.trungtam.schedule.entity.RecurrenceType;
 import com.trungtam.schedule.entity.SessionAttendance;
 import com.trungtam.schedule.entity.SessionStatus;
+import com.trungtam.schedule.entity.SessionVideo;
+import com.trungtam.schedule.entity.SessionZoomLink;
 import com.trungtam.schedule.repository.ClassRosterRepository;
 import com.trungtam.schedule.repository.ClassScheduleRepository;
 import com.trungtam.schedule.repository.ClassSessionRepository;
 import com.trungtam.schedule.repository.SessionAttendanceRepository;
+import com.trungtam.schedule.repository.SessionVideoRepository;
+import com.trungtam.schedule.repository.SessionZoomLinkRepository;
 import com.trungtam.schoolclass.entity.SchoolClass;
 import com.trungtam.schoolclass.repository.SchoolClassRepository;
+import com.trungtam.security.SecurityService;
 import com.trungtam.security.SecurityUtils;
 import com.trungtam.topic.entity.Topic;
 import com.trungtam.topic.repository.TopicRepository;
+import com.trungtam.video.entity.LectureVideo;
+import com.trungtam.video.repository.LectureVideoRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,6 +72,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Quy tac lich, sinh buoi (chong trung), CRUD buoi, diem danh, timetable, QR.
@@ -75,6 +90,9 @@ public class ScheduleService {
     private static final String VIEW_TEACHER = "TEACHER";
     private static final String VIEW_ROOM = "ROOM";
     private static final String VIEW_PARENT = "PARENT";
+    private static final String DEFAULT_ZOOM_LABEL = "Link chinh";
+    private static final Pattern ZOOM_URL = Pattern.compile(
+            "^(https?://)?([\\w-]+\\.)?zoom\\.us/(j|my|w|s)/.*$", Pattern.CASE_INSENSITIVE);
 
     private final ClassScheduleRepository scheduleRepository;
     private final ClassSessionRepository sessionRepository;
@@ -90,6 +108,10 @@ public class ScheduleService {
     private final NotificationService notificationService;
     private final QrTokenService qrTokenService;
     private final TeacherAttendanceService teacherAttendanceService;
+    private final SessionVideoRepository sessionVideoRepository;
+    private final SessionZoomLinkRepository zoomLinkRepository;
+    private final LectureVideoRepository lectureVideoRepository;
+    private final SecurityService securityService;
 
     @Value("${app.schedule.timezone:Asia/Ho_Chi_Minh}")
     private String timezone;
@@ -170,6 +192,13 @@ public class ScheduleService {
         schedule.setRoom(resolveRoom(req.roomId()));
         schedule.setTeacher(resolveTeacher(req.teacherId()));
         schedule.setActive(req.active() == null || req.active());
+        String defaultZoomUrl = req.defaultZoomUrl() == null ? null : req.defaultZoomUrl().trim();
+        if (defaultZoomUrl != null && !defaultZoomUrl.isEmpty()) {
+            validateZoomUrl(defaultZoomUrl);
+        } else {
+            defaultZoomUrl = null;
+        }
+        schedule.setDefaultZoomUrl(defaultZoomUrl);
     }
 
     // ============================ SINH BUOI (§3.6.1) ============================
@@ -258,6 +287,16 @@ public class ScheduleService {
                 s.setPrice(rule.getClazz().getPricePerSession());
                 s.setPriceOverridden(false);
                 sessionRepository.save(s);
+                // Copy link Zoom mac dinh cua quy tac (neu co) vao buoi vua sinh —
+                // chi ap dung luc SINH MOI, khong ghi de buoi da co san (SPEC_VideoBaiGiang_Zoom.md §3.3).
+                if (rule.getDefaultZoomUrl() != null && !rule.getDefaultZoomUrl().isBlank()) {
+                    SessionZoomLink link = new SessionZoomLink();
+                    link.setSession(s);
+                    link.setLabel(DEFAULT_ZOOM_LABEL);
+                    link.setZoomUrl(rule.getDefaultZoomUrl());
+                    link.setSortOrder(0);
+                    zoomLinkRepository.save(link);
+                }
             }
         }
         return new GeneratePreview(total, sessions, conflicts);
@@ -467,6 +506,112 @@ public class ScheduleService {
         if (teacherId != null
                 && !sessionRepository.findTeacherConflicts(teacherId, date, startTime, duration, excludeId).isEmpty()) {
             throw new AppException(ErrorCode.TEACHER_TIME_CONFLICT);
+        }
+    }
+
+    // ============================ VIDEO / ZOOM (SPEC_VideoBaiGiang_Zoom.md) ============================
+
+    /** Doc: HV/PH chi xem buoi cua lop/con minh — dung lai guard cua §/outline. */
+    public List<SessionVideoItem> listSessionVideos(Long sessionId) {
+        ClassSession s = findSessionOrThrow(sessionId);
+        requireCanViewClassContent(s.getClazz().getId());
+        return sessionVideoRepository.findBySessionIdOrderBySortOrderAsc(sessionId).stream()
+                .map(SessionVideoItem::from)
+                .toList();
+    }
+
+    /**
+     * Gan (GHI DE toan bo) danh sach video cho 1 buoi hoc, thu tu theo
+     * {@code videoIds}. Khong kiem ownership theo GV day buoi — xem
+     * SPEC_VideoBaiGiang_Zoom.md §1.1 (nhat quan voi CLASS:WRITE hien tai,
+     * chan o tang @PreAuthorize SESSION_CONTENT:WRITE tren controller).
+     */
+    @Transactional
+    public List<SessionVideoItem> assignSessionVideos(Long sessionId, AssignSessionVideosRequest req) {
+        ClassSession s = findSessionOrThrow(sessionId);
+        List<Long> videoIds = req.videoIds() == null
+                ? List.of()
+                : req.videoIds().stream().filter(Objects::nonNull).distinct().toList();
+        Map<Long, LectureVideo> byId = lectureVideoRepository.findAllById(videoIds).stream()
+                .collect(Collectors.toMap(LectureVideo::getId, v -> v));
+        if (byId.size() != videoIds.size()) {
+            throw new AppException(ErrorCode.VIDEO_NOT_FOUND);
+        }
+        sessionVideoRepository.deleteBySessionId(sessionId);
+        sessionVideoRepository.flush();
+        List<SessionVideo> rows = new ArrayList<>();
+        int order = 0;
+        for (Long videoId : videoIds) {
+            SessionVideo sv = new SessionVideo();
+            sv.setSession(s);
+            sv.setVideo(byId.get(videoId));
+            sv.setSortOrder(order++);
+            rows.add(sv);
+        }
+        sessionVideoRepository.saveAll(rows);
+        return rows.stream().map(SessionVideoItem::from).toList();
+    }
+
+    public List<ZoomLinkItem> listZoomLinks(Long sessionId) {
+        ClassSession s = findSessionOrThrow(sessionId);
+        requireCanViewClassContent(s.getClazz().getId());
+        return zoomLinkRepository.findBySessionIdOrderBySortOrderAsc(sessionId).stream()
+                .map(ZoomLinkItem::from)
+                .toList();
+    }
+
+    @Transactional
+    public ZoomLinkItem addZoomLink(Long sessionId, UpsertZoomLinkRequest req) {
+        ClassSession s = findSessionOrThrow(sessionId);
+        String url = req.zoomUrl().trim();
+        validateZoomUrl(url);
+        SessionZoomLink link = new SessionZoomLink();
+        link.setSession(s);
+        link.setLabel(resolveZoomLabel(req.label()));
+        link.setZoomUrl(url);
+        link.setMeetingId(req.meetingId());
+        link.setPasscode(req.passcode());
+        link.setSortOrder((int) zoomLinkRepository.countBySessionId(sessionId));
+        return ZoomLinkItem.from(zoomLinkRepository.save(link));
+    }
+
+    @Transactional
+    public ZoomLinkItem updateZoomLink(Long linkId, UpsertZoomLinkRequest req) {
+        SessionZoomLink link = findZoomLinkOrThrow(linkId);
+        String url = req.zoomUrl().trim();
+        validateZoomUrl(url);
+        link.setLabel(resolveZoomLabel(req.label()));
+        link.setZoomUrl(url);
+        link.setMeetingId(req.meetingId());
+        link.setPasscode(req.passcode());
+        return ZoomLinkItem.from(zoomLinkRepository.save(link));
+    }
+
+    @Transactional
+    public void deleteZoomLink(Long linkId) {
+        SessionZoomLink link = findZoomLinkOrThrow(linkId);
+        zoomLinkRepository.delete(link);
+    }
+
+    private String resolveZoomLabel(String label) {
+        return (label == null || label.isBlank()) ? DEFAULT_ZOOM_LABEL : label.trim();
+    }
+
+    private void validateZoomUrl(String url) {
+        if (url == null || !ZOOM_URL.matcher(url).matches()) {
+            throw new AppException(ErrorCode.ZOOM_URL_INVALID);
+        }
+    }
+
+    private SessionZoomLink findZoomLinkOrThrow(Long linkId) {
+        return zoomLinkRepository.findById(linkId)
+                .orElseThrow(() -> new AppException(ErrorCode.ZOOM_LINK_NOT_FOUND));
+    }
+
+    private void requireCanViewClassContent(Long classId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (!securityService.canViewClassContent(classId, auth)) {
+            throw new AppException(ErrorCode.ACCESS_DENIED);
         }
     }
 

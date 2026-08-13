@@ -70,4 +70,8 @@ public class ClassSchedule extends BaseEntity {
 
     @Column(name = "active", nullable = false)
     private boolean active = true;
+
+    /** Link Zoom mac dinh cho cac buoi SINH MOI tu quy tac nay (khong ghi de buoi da co san). */
+    @Column(name = "default_zoom_url", length = 500)
+    private String defaultZoomUrl;
 }

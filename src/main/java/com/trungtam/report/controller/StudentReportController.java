@@ -224,6 +224,17 @@ public class StudentReportController {
         return ApiResponse.ok(practiceAssignmentService.list(studentId, classId));
     }
 
+    /**
+     * Toan bo de da giao cho 1 HV, gop MOI lop — nguon cho the "Bai phu
+     * huynh giao" o tab Khoa hoc (§10.11, 11/08/2026).
+     */
+    @GetMapping("/students/{studentId}/practice-assignments")
+    @PreAuthorize(CAN_VIEW)
+    public ApiResponse<List<PracticeAssignmentResponse>> allPracticeAssignments(
+            @PathVariable Long studentId) {
+        return ApiResponse.ok(practiceAssignmentService.listAll(studentId));
+    }
+
     @GetMapping("/my-classes")
     @PreAuthorize("hasAuthority('REPORT:READ')")
     public ApiResponse<List<StudentClassOption>> myClasses() {

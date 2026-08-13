@@ -108,12 +108,17 @@ public class PracticeAssignmentService {
             throw new AppException(ErrorCode.STUDENT_NOT_IN_CLASS);
         }
 
-        // Bai thi nguon phai thuoc khoa
-        Exam sourceExam = examRepository.findById(req.examId())
-                .orElseThrow(() -> new AppException(ErrorCode.EXAM_NOT_FOUND));
-        boolean examInClass = sourceExam.getClasses().stream().anyMatch(c -> c.getId().equals(classId));
-        if (!examInClass) {
-            throw new AppException(ErrorCode.EXAM_NOT_IN_CLASS);
+        // Bai thi nguon (tuy chon) — chi co khi giao tu man chi tiet 1 bai thi.
+        // Giao truc tiep tu cap khoa/chuong/buoi (SPEC_BaoCao.md §10, mo rong
+        // 11/08/2026) thi khong co bai thi nguon, examId = null.
+        Exam sourceExam = null;
+        if (req.examId() != null) {
+            sourceExam = examRepository.findById(req.examId())
+                    .orElseThrow(() -> new AppException(ErrorCode.EXAM_NOT_FOUND));
+            boolean examInClass = sourceExam.getClasses().stream().anyMatch(c -> c.getId().equals(classId));
+            if (!examInClass) {
+                throw new AppException(ErrorCode.EXAM_NOT_IN_CLASS);
+            }
         }
 
         // Chong spam
@@ -125,18 +130,22 @@ public class PracticeAssignmentService {
             throw new AppException(ErrorCode.PRACTICE_LIMIT_REACHED);
         }
 
-        // Buoc 0: chon chuyen de
+        // Buoc 0: chon chuyen de. topic = null nghia la TOAN KHOA that su
+        // (khong thu hep ve 1 chuong) — 11/08/2026: bo fallback "tu chon 1
+        // chuong yeu nhat", vi giao "toan khoa" phai lay tren toan khoa.
         Topic topic = resolveTopic(req, sourceExam, studentId, classId, clazz);
+        Long topicId = topic == null ? null : topic.getId();
 
-        // Buoc 1: nguon danh gia = breakdown TOAN CHUONG
-        List<BreakdownProjection> diff = aggregationRepository.difficultyBreakdown(studentId, classId, topic.getId(), null, null);
-        List<BreakdownProjection> byType = aggregationRepository.typeBreakdown(studentId, classId, topic.getId(), null, null);
+        // Buoc 1: nguon danh gia = breakdown TOAN CHUONG (hoac TOAN KHOA neu topic null)
+        List<BreakdownProjection> diff = aggregationRepository.difficultyBreakdown(studentId, classId, topicId, null, null);
+        List<BreakdownProjection> byType = aggregationRepository.typeBreakdown(studentId, classId, topicId, null, null);
 
         int[] diffAlloc = difficultyAllocation(focus(diff));   // [easy, medium, hard]
         boolean mcHeavier = mcIsWeaker(byType);                // dang yeu hon chiem 7/10
 
-        // Tuyen bai trong chuyen de
-        List<Long> picked = pickExercises(clazz.getSubject().getId(), topic.getId(), studentId,
+        // Tuyen bai: trong 1 chuyen de neu co topic, hoac ca mon (moi chuyen
+        // de) neu giao toan khoa.
+        List<Long> picked = pickExercises(clazz.getSubject().getId(), topicId, studentId,
                 diffAlloc, mcHeavier);
         if (picked.size() < 5) {
             throw new AppException(ErrorCode.PRACTICE_BANK_INSUFFICIENT);
@@ -166,11 +175,12 @@ public class PracticeAssignmentService {
         // Thong bao HV
         String payload = String.format("{\"examId\":%d,\"classId\":%d,\"studentId\":%d}",
                 exam.getId(), classId, studentId);
+        String topicLabel = topic != null ? "chương " + topic.getName() : "toàn khóa";
         notificationService.notifyFrom(assigner.getId(), studentId, NotificationType.PRACTICE_ASSIGNED,
                 "Bài luyện tập mới",
-                "Bạn được giao đề luyện tập chương " + topic.getName(),
+                "Bạn được giao đề luyện tập " + topicLabel,
                 "Đề luyện tập được giao",
-                "Bạn có đề luyện tập \"" + exam.getName() + "\" (chương " + topic.getName()
+                "Bạn có đề luyện tập \"" + exam.getName() + "\" (" + topicLabel
                         + "). Mở khóa học để làm bài trước hạn.",
                 payload, "practice-assigned:" + exam.getId());
 
@@ -179,6 +189,17 @@ public class PracticeAssignmentService {
 
     public List<PracticeAssignmentResponse> list(Long studentId, Long classId) {
         return practiceRepository.findByStudentIdAndSchoolClassIdOrderByCreatedAtDesc(studentId, classId)
+                .stream().map(this::toResponse).toList();
+    }
+
+    /**
+     * Toan bo de PH/GV da giao cho 1 HV, gop tu MOI lop (khong can biet
+     * truoc lop nao) — nguon du lieu cho the "Bai phu huynh giao" o tab
+     * Khoa hoc cua HV (§10.11, 11/08/2026: PH giao bai kho tim vi nam lan
+     * trong danh sach de cua tung lop rieng le).
+     */
+    public List<PracticeAssignmentResponse> listAll(Long studentId) {
+        return practiceRepository.findByStudentIdOrderByCreatedAtDesc(studentId)
                 .stream().map(this::toResponse).toList();
     }
 
@@ -213,27 +234,23 @@ public class PracticeAssignmentService {
 
     // ======================= HELPERS =======================
 
+    /**
+     * Chon chuyen de de giao bai. Tra {@code null} nghia la TOAN KHOA that su
+     * — KHONG tu thu hep ve 1 chuong (11/08/2026, sua theo yeu cau nguoi
+     * dung: "toàn khóa thì BE chọn trong toàn khóa", khong con fallback "1
+     * chuong yeu nhat" nhu truoc).
+     */
     private Topic resolveTopic(AssignPracticeRequest req, Exam sourceExam, Long studentId,
                                Long classId, SchoolClass clazz) {
         Long topicId = req.topicId();
-        if (topicId == null) {
+        if (topicId == null && sourceExam != null) {
             topicId = sourceExam.getTopic() == null ? null : sourceExam.getTopic().getId();
         }
-        if (topicId == null) {
-            topicId = bankRepository.inferTopicFromExam(studentId, req.examId());
+        if (topicId == null && sourceExam != null) {
+            topicId = bankRepository.inferTopicFromExam(studentId, sourceExam.getId());
         }
         if (topicId == null) {
-            topicId = aggregationRepository.topicMastery(studentId, classId).stream()
-                    .filter(t -> t.getTopicId() != null && t.getMax() != null
-                            && t.getMax().signum() > 0)
-                    .min(Comparator.comparingDouble(
-                            t -> t.getEarned().doubleValue() / t.getMax().doubleValue()))
-                    .map(com.trungtam.report.repository.ReportAggregationRepository
-                            .TopicMasteryProjection::getTopicId)
-                    .orElse(null);
-        }
-        if (topicId == null) {
-            throw new AppException(ErrorCode.PRACTICE_BANK_INSUFFICIENT);
+            return null; // toan khoa
         }
         Topic topic = topicRepository.findById(topicId)
                 .orElseThrow(() -> new AppException(ErrorCode.TOPIC_NOT_FOUND));
@@ -298,12 +315,17 @@ public class PracticeAssignmentService {
         return g < minSample ? null : (double) nz(b.getCorrectCount()) / g;
     }
 
-    /** Tuyen bai TRONG chuyen de theo phan bo do kho + ti le dang bai, no long dan. */
+    /**
+     * Tuyen bai theo phan bo do kho + ti le dang bai, no long dan. [topicId]
+     * null -> tuyen tren CA MON (toan khoa, moi chuyen de) thay vi 1 chuong.
+     */
     private List<Long> pickExercises(Long subjectId, Long topicId, Long studentId,
                                      int[] diffAlloc, boolean mcHeavier) {
-        List<BankExercise> bank = bankRepository.bankByTopic(subjectId, topicId);
+        List<BankExercise> bank = topicId == null
+                ? bankRepository.bankBySubject(subjectId)
+                : bankRepository.bankByTopic(subjectId, topicId);
         Set<Long> seen = new HashSet<>(bankRepository.seenExerciseIds(studentId));
-        Random rnd = new Random(topicId * 31L + studentId);
+        Random rnd = new Random((topicId == null ? 0L : topicId) * 31L + studentId);
 
         // slots do kho
         List<String> diffSlots = new ArrayList<>();
@@ -373,11 +395,12 @@ public class PracticeAssignmentService {
         };
     }
 
+    /** [topic] null = de toan khoa (khong gan 1 chuyen de cu the). */
     private Exam buildExam(SchoolClass clazz, Topic topic, List<Long> exerciseIds) {
         Instant now = Instant.now();
         String dateLabel = LocalDate.now(ZoneId.of(timezone)).format(DateTimeFormatter.ofPattern("dd/MM"));
         Exam exam = new Exam();
-        exam.setName("Luyện tập PH giao — " + topic.getName() + " — " + dateLabel);
+        exam.setName("Luyện tập PH giao — " + (topic != null ? topic.getName() : "Toàn khóa") + " — " + dateLabel);
         exam.setSubject(clazz.getSubject());
         exam.setTopic(topic);
         exam.setType(ExamType.SUPPLEMENTARY);
@@ -430,11 +453,14 @@ public class PracticeAssignmentService {
             }
         }
         Topic topic = exam.getTopic();
+        SchoolClass clazz = pa.getSchoolClass();
         return new PracticeAssignmentResponse(
                 pa.getId(), exam.getId(), exam.getCode(), exam.getName(),
+                clazz.getId(), clazz.getName(),
                 topic == null ? null : topic.getId(),
                 topic == null ? null : topic.getName(),
                 exam.getExamExercises().size(),
+                exam.getDurationMinutes(),
                 new DifficultyCount(easy, medium, hard),
                 new TypeCount(mc, tf),
                 exam.getEndAt(),

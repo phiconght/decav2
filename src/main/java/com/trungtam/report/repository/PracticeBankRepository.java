@@ -22,6 +22,18 @@ public interface PracticeBankRepository extends Repository<Exercise, Long> {
     List<BankExercise> bankByTopic(@Param("subjectId") Long subjectId,
                                    @Param("topicId") Long topicId);
 
+    /**
+     * Bai ACTIVE cua CA MON (moi chuyen de), tru tu luan — dung khi giao bai
+     * pham vi "toan khoa" (khong thu hep ve 1 chuong, 11/08/2026).
+     */
+    @Query(value = """
+            SELECT ex.id AS id, ex.difficulty AS difficulty, ex.type AS type
+            FROM exercises ex
+            WHERE ex.subject_id = :subjectId
+              AND ex.status = 'ACTIVE' AND ex.type <> 'ESSAY'
+            """, nativeQuery = true)
+    List<BankExercise> bankBySubject(@Param("subjectId") Long subjectId);
+
     /** Cac bai HV da gap (o bat ky de nao co dong exam_student). */
     @Query(value = """
             SELECT DISTINCT ee.exercise_id

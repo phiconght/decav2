@@ -129,6 +129,44 @@ public class ExamService {
                 && !e.getPublishAt().isAfter(Instant.now());
     }
 
+    /**
+     * De thi gan RIENG 1 buoi hoc (exam.session_id) — dung cho man Chi tiet
+     * buoi hoc (Mobile). Guard giong {@link #listExamsByClass}: phai co quan
+     * he voi lop cua buoi; khong co EXAM:READ thi chi thay de da phat.
+     */
+    public List<com.trungtam.exam.dto.response.SessionExamItem> listExamsBySession(Long sessionId) {
+        com.trungtam.schedule.entity.ClassSession session = classSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new AppException(ErrorCode.SESSION_NOT_FOUND));
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Long classId = session.getClazz().getId();
+        if (!securityService.canViewClassContent(classId, auth)) {
+            throw new AppException(ErrorCode.ACCESS_DENIED);
+        }
+        boolean seesUnpublished = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> "EXAM:READ".equals(a.getAuthority()));
+        Long myId = securityService.currentUserId(auth);
+        boolean isStudentRole = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_STUDENT".equals(a.getAuthority()));
+
+        return examRepository.findBySessionId(sessionId).stream()
+                .filter(e -> seesUnpublished || isPublishedForStudent(e))
+                .sorted(Comparator.comparing(Exam::getPublishAt,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .map(e -> {
+                    ExamStudent es = (isStudentRole && myId != null)
+                            ? examStudentRepository.findByExamIdAndUserId(e.getId(), myId).orElse(null)
+                            : null;
+                    return new com.trungtam.exam.dto.response.SessionExamItem(
+                            e.getId(), e.getCode(), e.getName(),
+                            e.getType() != null ? e.getType().name() : null,
+                            e.getStatus() != null ? e.getStatus().name() : null,
+                            e.getPublishAt(), e.getEndAt(), e.getDurationMinutes(),
+                            es != null && es.getStatus() != null ? es.getStatus().name() : null,
+                            es != null ? es.getScore() : null);
+                })
+                .toList();
+    }
+
     public ExamDetailResponse getById(Long id) {
         return ExamDetailResponse.from(findOrThrow(id));
     }

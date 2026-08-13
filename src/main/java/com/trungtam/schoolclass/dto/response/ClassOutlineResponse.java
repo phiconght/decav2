@@ -63,7 +63,14 @@ public record ClassOutlineResponse(
             String cancelReason,
             String attendanceStatus,
             boolean onLeave,
-            int materialCount
+            int materialCount,
+            /**
+             * De thi cua RIENG buoi nay (exam.session_id = buoi nay) — hien
+             * ngay sau buoi hoc thay vi don rieng cuoi nhom chuyen de. De
+             * khong gan buoi nao (session_id null, legacy) van nam o
+             * {@link OutlineTopicGroup#exams()}.
+             */
+            List<OutlineExam> exams
     ) {}
 
     public record OutlineExam(

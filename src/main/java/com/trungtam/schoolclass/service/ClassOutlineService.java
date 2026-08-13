@@ -114,6 +114,13 @@ public class ClassOutlineService {
                                 ReportAggregationRepository.ExamMaxScoreProjection::getExamId,
                                 ReportAggregationRepository.ExamMaxScoreProjection::getMaxScore));
 
+        // De thi gan RIENG vao 1 buoi (exam.session_id) -> hien ngay sau buoi
+        // do thay vi don cuoi nhom chuyen de. De khong gan buoi (session_id
+        // null, legacy/chuyen de-cap) van xep vao OutlineTopicGroup.exams.
+        Map<Long, List<Exam>> examsBySession = exams.stream()
+                .filter(e -> e.getSession() != null)
+                .collect(Collectors.groupingBy(e -> e.getSession().getId()));
+
         // ---- gom nhom theo chuyen de ----
         // LinkedHashMap giu thu tu chen; sap xep lai o buoc cuoi.
         Map<Long, GroupAcc> byTopic = new LinkedHashMap<>();
@@ -124,12 +131,19 @@ public class ClassOutlineService {
                     topicId,
                     s.getTopic() != null ? s.getTopic().getName() : null,
                     s.getTopic() != null ? s.getTopic().getSortOrder() : null));
+            List<OutlineExam> sessionExams = examsBySession
+                    .getOrDefault(s.getId(), List.of()).stream()
+                    .map(e -> toExam(e, esByExam.get(e.getId()), maxScoreByExam.get(e.getId())))
+                    .toList();
             // Danh so TOAN BO buoi theo thoi gian, KE CA buoi da huy: neu bo
             // buoi huy ra thi moi lan huy se doi so cua tat ca buoi phia sau
             // (hoc vien dang nho "Buoi 5" hom sau thanh "Buoi 4").
-            g.sessions.add(toSession(s, ordinal++, attBySession.get(s.getId())));
+            g.sessions.add(toSession(s, ordinal++, attBySession.get(s.getId()), sessionExams));
         }
         for (Exam e : exams) {
+            if (e.getSession() != null) {
+                continue; // da gan vao dung buoi cua no o vong lap tren.
+            }
             Long topicId = e.getTopic() != null ? e.getTopic().getId() : null;
             GroupAcc g = byTopic.computeIfAbsent(topicId, k -> new GroupAcc(
                     topicId,
@@ -218,7 +232,8 @@ public class ClassOutlineService {
 
     // ============================ mapping ============================
 
-    private OutlineSession toSession(ClassSession s, int ordinal, SessionAttendance a) {
+    private OutlineSession toSession(ClassSession s, int ordinal, SessionAttendance a,
+                                     List<OutlineExam> sessionExams) {
         AttendanceStatus st = a != null ? a.getStatus() : null;
         return new OutlineSession(
                 s.getId(),
@@ -235,7 +250,8 @@ public class ClassOutlineService {
                 st == AttendanceStatus.CO_PHEP,
                 // Tai lieu buoi hoc thuoc DOT 2 — chua co bang session_materials.
                 // Giu san field de dot sau khong phai doi hop dong API.
-                0);
+                0,
+                sessionExams);
     }
 
     private OutlineExam toExam(Exam e, ExamStudent es, java.math.BigDecimal maxScore) {

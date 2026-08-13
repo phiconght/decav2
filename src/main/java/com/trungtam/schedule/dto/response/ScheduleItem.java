@@ -18,7 +18,8 @@ public record ScheduleItem(
         String roomName,
         Long teacherId,
         String teacherName,
-        boolean active
+        boolean active,
+        String defaultZoomUrl
 ) {
     public static ScheduleItem from(ClassSchedule s) {
         return new ScheduleItem(
@@ -33,6 +34,7 @@ public record ScheduleItem(
                 s.getRoom() != null ? s.getRoom().getName() : null,
                 s.getTeacher() != null ? s.getTeacher().getId() : null,
                 s.getTeacher() != null ? s.getTeacher().getFullName() : null,
-                s.isActive());
+                s.isActive(),
+                s.getDefaultZoomUrl());
     }
 }

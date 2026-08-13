@@ -1,13 +1,13 @@
 package com.trungtam.report.dto.request;
 
-import jakarta.validation.constraints.NotNull;
-
 /**
- * examId = bai thi PH dang xem (truy vet source). topicId = chuong dang chon o
- * dropdown man chi tiet bai thi; null -> BE tu suy tu bai thi (§10.3 Buoc 0).
+ * examId = bai thi PH dang xem (truy vet source) — KHONG BAT BUOC: null khi
+ * giao bai truc tiep tu cap khoa/chuong/buoi (khong xuat phat tu 1 bai thi cu
+ * the). topicId = chuong dang chon; null -> BE tu suy: tu bai thi (neu co) ->
+ * chuong yeu nhat trong khoa (§10.3 Buoc 0, mo rong cho truong hop examId null).
  */
 public record AssignPracticeRequest(
-        @NotNull Long examId,
+        Long examId,
         Long topicId
 ) {
 }

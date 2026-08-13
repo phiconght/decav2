@@ -123,6 +123,17 @@ public class ExamController {
         return ApiResponse.ok(examService.listExamsByClass(classId));
     }
 
+    /**
+     * De thi gan RIENG 1 buoi hoc — man Chi tiet buoi hoc (Mobile) hien de
+     * thi ngay duoi cung, bam vao lam bai luon (khong can qua man Khoa hoc).
+     */
+    @GetMapping("/by-session/{sessionId}")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<List<com.trungtam.exam.dto.response.SessionExamItem>> listBySession(
+            @PathVariable Long sessionId) {
+        return ApiResponse.ok(examService.listExamsBySession(sessionId));
+    }
+
     /** Danh sach khoa hoc cua 1 de (popup cot "So khoa"). */
     @GetMapping("/{examId}/classes")
     @PreAuthorize("hasAuthority('EXAM:READ')")

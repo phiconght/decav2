@@ -13,6 +13,9 @@ public interface PracticeAssignmentRepository extends JpaRepository<PracticeAssi
 
     List<PracticeAssignment> findByStudentIdAndSchoolClassIdOrderByCreatedAtDesc(Long studentId, Long classId);
 
+    /** Toan bo de da giao cho 1 HV, KHONG gioi han theo lop — "Bai phu huynh giao" (§10.11). */
+    List<PracticeAssignment> findByStudentIdOrderByCreatedAtDesc(Long studentId);
+
     /** So de PH giao cho HV trong lop hom nay (chong max-per-day). */
     long countByParentIdAndStudentIdAndSchoolClassIdAndCreatedAtAfter(
             Long parentId, Long studentId, Long classId, Instant since);

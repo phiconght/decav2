@@ -16,4 +16,7 @@ public interface ExamRepository extends JpaRepository<Exam, Long>, JpaSpecificat
     /** De thi duoc gan cho 1 lop (qua exam_classes). */
     @Query("SELECT e FROM Exam e JOIN e.classes c WHERE c.id = :classId")
     List<Exam> findByClassId(@Param("classId") Long classId);
+
+    /** De thi gan RIENG 1 buoi hoc (exam.session_id). */
+    List<Exam> findBySessionId(Long sessionId);
 }

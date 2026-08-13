@@ -1,6 +1,7 @@
 package com.trungtam.schedule.controller;
 
 import com.trungtam.common.dto.ApiResponse;
+import com.trungtam.schedule.dto.request.AssignSessionVideosRequest;
 import com.trungtam.schedule.dto.request.CancelSessionRequest;
 import com.trungtam.schedule.dto.request.CheckinRequest;
 import com.trungtam.schedule.dto.request.CreateManualSessionRequest;
@@ -9,12 +10,15 @@ import com.trungtam.schedule.dto.request.TimetableQuery;
 import com.trungtam.schedule.dto.request.UpdateAttendanceRequest;
 import com.trungtam.schedule.dto.request.BulkAssignTopicRequest;
 import com.trungtam.schedule.dto.request.UpdateSessionRequest;
+import com.trungtam.schedule.dto.request.UpsertZoomLinkRequest;
 import com.trungtam.schedule.dto.response.AttendanceItem;
 import com.trungtam.schedule.dto.response.GeneratePreview;
 import com.trungtam.schedule.dto.response.QrTokenResponse;
 import com.trungtam.schedule.dto.response.ScheduleItem;
 import com.trungtam.schedule.dto.response.SessionDetail;
+import com.trungtam.schedule.dto.response.SessionVideoItem;
 import com.trungtam.schedule.dto.response.TimetableItem;
+import com.trungtam.schedule.dto.response.ZoomLinkItem;
 import com.trungtam.schedule.service.ScheduleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -136,6 +140,56 @@ public class ScheduleController {
             @PathVariable Long id,
             @Valid @RequestBody CancelSessionRequest request) {
         return ApiResponse.ok(scheduleService.cancelSession(id, request.reason()));
+    }
+
+    // ---------------------- Video bai giang ----------------------
+
+    @GetMapping("/sessions/{id}/videos")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<List<SessionVideoItem>> listSessionVideos(@PathVariable Long id) {
+        return ApiResponse.ok(scheduleService.listSessionVideos(id));
+    }
+
+    /** Ghi de toan bo danh sach video cua buoi (thu tu = thu tu videoIds). */
+    @PutMapping("/sessions/{id}/videos")
+    @PreAuthorize("hasAuthority('SESSION_CONTENT:WRITE')")
+    public ApiResponse<List<SessionVideoItem>> assignSessionVideos(
+            @PathVariable Long id,
+            @Valid @RequestBody AssignSessionVideosRequest request) {
+        return ApiResponse.ok(scheduleService.assignSessionVideos(id, request));
+    }
+
+    // ---------------------- Link Zoom ----------------------
+
+    @GetMapping("/sessions/{id}/zoom-links")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<List<ZoomLinkItem>> listZoomLinks(@PathVariable Long id) {
+        return ApiResponse.ok(scheduleService.listZoomLinks(id));
+    }
+
+    @PostMapping("/sessions/{id}/zoom-links")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('SESSION_CONTENT:WRITE')")
+    public ApiResponse<ZoomLinkItem> addZoomLink(
+            @PathVariable Long id,
+            @Valid @RequestBody UpsertZoomLinkRequest request) {
+        return ApiResponse.ok(scheduleService.addZoomLink(id, request));
+    }
+
+    @PutMapping("/sessions/{id}/zoom-links/{linkId}")
+    @PreAuthorize("hasAuthority('SESSION_CONTENT:WRITE')")
+    public ApiResponse<ZoomLinkItem> updateZoomLink(
+            @PathVariable Long id,
+            @PathVariable Long linkId,
+            @Valid @RequestBody UpsertZoomLinkRequest request) {
+        return ApiResponse.ok(scheduleService.updateZoomLink(linkId, request));
+    }
+
+    @DeleteMapping("/sessions/{id}/zoom-links/{linkId}")
+    @PreAuthorize("hasAuthority('SESSION_CONTENT:WRITE')")
+    public ApiResponse<Void> deleteZoomLink(@PathVariable Long id, @PathVariable Long linkId) {
+        scheduleService.deleteZoomLink(linkId);
+        return ApiResponse.ok();
     }
 
     // ---------------------- QR token + check-in/out ----------------------

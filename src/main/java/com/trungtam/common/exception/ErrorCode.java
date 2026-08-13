@@ -137,6 +137,14 @@ public enum ErrorCode {
     // 413 — File size
     FILE_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "File vuot qua dung luong cho phep"),
 
+    // 404/400/409 — Video bai giang / Link Zoom (SPEC_VideoBaiGiang_Zoom.md)
+    VIDEO_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay video"),
+    VIDEO_URL_INVALID(HttpStatus.BAD_REQUEST, "Duong dan video khong hop le (chi chap nhan YouTube)"),
+    VIDEO_URL_DUPLICATED(HttpStatus.CONFLICT, "Video voi duong dan nay da co trong kho"),
+    VIDEO_IN_USE(HttpStatus.CONFLICT, "Video dang duoc gan cho buoi hoc, khong the xoa"),
+    ZOOM_URL_INVALID(HttpStatus.BAD_REQUEST, "Duong dan Zoom khong hop le"),
+    ZOOM_LINK_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay link Zoom"),
+
     // 500
     FILE_STORAGE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Loi luu tru file"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Loi he thong");
