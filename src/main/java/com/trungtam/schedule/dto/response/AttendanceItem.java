@@ -11,6 +11,8 @@ public record AttendanceItem(
         String phone,
         AttendanceStatus status,
         Instant checkInAt,
-        Instant checkOutAt
+        Instant checkOutAt,
+        String confirmedByName,
+        Instant confirmedAt
 ) {
 }

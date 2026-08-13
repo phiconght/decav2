@@ -658,6 +658,7 @@ public class ScheduleService {
                 || (nowDate.equals(s.getSessionDate())
                     && nowLocal.isAfter(s.getStartTime().plusMinutes(graceMinutes)));
         a.setStatus(late ? AttendanceStatus.TRE : AttendanceStatus.CO_MAT);
+        clearConfirmation(a);
         attendanceRepository.save(a);
 
         String studentName = studentName(currentUserId);
@@ -684,6 +685,7 @@ public class ScheduleService {
                     return n;
                 });
         a.setCheckOutAt(Instant.now());
+        clearConfirmation(a);
         attendanceRepository.save(a);
 
         String studentName = studentName(currentUserId);
@@ -759,7 +761,9 @@ public class ScheduleService {
                     u.getId(), u.getFullName(), u.getUsername(), u.getPhone(),
                     a != null ? a.getStatus() : AttendanceStatus.CHUA_CHECKIN,
                     a != null ? a.getCheckInAt() : null,
-                    a != null ? a.getCheckOutAt() : null));
+                    a != null ? a.getCheckOutAt() : null,
+                    a != null && a.getConfirmedBy() != null ? a.getConfirmedBy().getFullName() : null,
+                    a != null ? a.getConfirmedAt() : null));
         }
         result.sort((x, y) -> {
             String nx = x.fullName() != null ? x.fullName() : "";
@@ -776,7 +780,30 @@ public class ScheduleService {
         SessionAttendance a = attendanceRepository.findBySessionIdAndUserId(sessionId, userId)
                 .orElseGet(() -> newAttendance(s, userId));
         a.setStatus(status);
+        clearConfirmation(a);
         attendanceRepository.save(a);
+    }
+
+    /**
+     * GV/Admin/nhan vien xac nhan diem danh dung — BAT BUOC truoc khi tinh
+     * vao bao cao (yeu cau nguoi dung 13/08/2026). Xem {@link #clearConfirmation}
+     * cho quy tac reset khi doi trang thai.
+     */
+    @Transactional
+    public void confirmAttendance(Long sessionId, Long userId) {
+        SessionAttendance a = attendanceRepository.findBySessionIdAndUserId(sessionId, userId)
+                .orElseThrow(() -> new AppException(ErrorCode.ATTENDANCE_NOT_FOUND));
+        if (a.getConfirmedAt() != null) {
+            throw new AppException(ErrorCode.ATTENDANCE_ALREADY_CONFIRMED);
+        }
+        a.setConfirmedBy(userRepository.getReferenceById(currentUserId()));
+        a.setConfirmedAt(Instant.now());
+        attendanceRepository.save(a);
+    }
+
+    private void clearConfirmation(SessionAttendance a) {
+        a.setConfirmedBy(null);
+        a.setConfirmedAt(null);
     }
 
     private SessionAttendance newAttendance(ClassSession s, Long userId) {

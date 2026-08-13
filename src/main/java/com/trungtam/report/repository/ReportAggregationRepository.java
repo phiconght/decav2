@@ -12,7 +12,11 @@ import java.util.List;
 /**
  * Tong hop du lieu bao cao bang native query (DENSE_RANK, FILTER, GROUP BY).
  * Map ket qua bang interface projection — alias cot khop ten getter (case-insensitive).
- * Moi query chi tinh bai DA_LAM. Cot timestamptz duoc Hibernate tra ve java.time.Instant.
+ * Moi query chi tinh bai DA_LAM va DA duoc nhan vien/GV xac nhan (confirmed_at
+ * IS NOT NULL) — xem ExamConfirmationService (yeu cau nguoi dung 13/08/2026).
+ * Tuong tu, moi query diem danh chi tinh cac dong session_attendance DA duoc
+ * xac nhan (sa.confirmed_at IS NOT NULL) — xem ScheduleService#confirmAttendance.
+ * Cot timestamptz duoc Hibernate tra ve java.time.Instant.
  */
 public interface ReportAggregationRepository extends Repository<ExamStudent, Long> {
 
@@ -32,7 +36,7 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
                 FROM exam_classes ec JOIN classes c ON c.id = ec.class_id
                 JOIN class_students cs ON cs.class_id = c.id AND cs.user_id = es.user_id
                 WHERE ec.exam_id = e.id ORDER BY c.id LIMIT 1) cc ON TRUE
-            WHERE es.user_id = :studentId AND es.status = 'DA_LAM'
+            WHERE es.user_id = :studentId AND es.status = 'DA_LAM' AND es.confirmed_at IS NOT NULL
             ORDER BY es.submitted_at DESC NULLS LAST
             LIMIT :limit
             """, nativeQuery = true)
@@ -49,7 +53,7 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
             JOIN exams e    ON e.id = es.exam_id
             JOIN subjects s ON s.id = e.subject_id
             JOIN classes c  ON c.id = :classId
-            WHERE es.user_id = :studentId AND es.status = 'DA_LAM'
+            WHERE es.user_id = :studentId AND es.status = 'DA_LAM' AND es.confirmed_at IS NOT NULL
               AND EXISTS (SELECT 1 FROM exam_classes ec WHERE ec.exam_id = e.id AND ec.class_id = :classId)
             ORDER BY es.submitted_at DESC NULLS LAST
             """, nativeQuery = true)
@@ -69,7 +73,7 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
             JOIN exams e    ON e.id = es.exam_id
             JOIN subjects s ON s.id = e.subject_id
             JOIN classes c  ON c.id = :classId
-            WHERE es.user_id = :studentId AND es.status = 'DA_LAM' AND e.session_id = :sessionId
+            WHERE es.user_id = :studentId AND es.status = 'DA_LAM' AND es.confirmed_at IS NOT NULL AND e.session_id = :sessionId
             ORDER BY es.submitted_at DESC NULLS LAST
             """, nativeQuery = true)
     List<RecentExamProjection> sessionExamsForStudent(@Param("studentId") Long studentId,
@@ -89,7 +93,7 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
                    COUNT(DISTINCT cs.user_id) AS assignedCount
             FROM exams e
             JOIN class_students cs ON cs.class_id = :classId
-            LEFT JOIN exam_student es ON es.exam_id = e.id AND es.user_id = cs.user_id AND es.status = 'DA_LAM'
+            LEFT JOIN exam_student es ON es.exam_id = e.id AND es.user_id = cs.user_id AND es.status = 'DA_LAM' AND es.confirmed_at IS NOT NULL
             WHERE e.session_id = :sessionId
             GROUP BY e.id, e.name, e.publish_at
             ORDER BY e.publish_at NULLS LAST, e.id
@@ -105,7 +109,7 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
                        DENSE_RANK() OVER (ORDER BY es.score DESC) AS rnk
                 FROM exam_student es
                 JOIN class_students cs ON cs.user_id = es.user_id AND cs.class_id = :classId
-                WHERE es.exam_id = :examId AND es.status = 'DA_LAM')
+                WHERE es.exam_id = :examId AND es.status = 'DA_LAM' AND es.confirmed_at IS NOT NULL)
             SELECT (SELECT rnk FROM pop WHERE user_id = :studentId) AS rank,
                    AVG(score) AS classAverage,
                    COUNT(*) AS submittedCount
@@ -130,7 +134,7 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
             FROM exams e
             JOIN exam_classes ec   ON ec.exam_id = e.id AND ec.class_id = :classId
             JOIN class_students cs ON cs.class_id = :classId
-            LEFT JOIN exam_student es ON es.exam_id = e.id AND es.user_id = cs.user_id AND es.status = 'DA_LAM'
+            LEFT JOIN exam_student es ON es.exam_id = e.id AND es.user_id = cs.user_id AND es.status = 'DA_LAM' AND es.confirmed_at IS NOT NULL
             WHERE (CAST(:topicId AS BIGINT) IS NULL OR e.topic_id = :topicId)
             GROUP BY e.id, e.name, e.publish_at
             ORDER BY e.publish_at NULLS LAST, e.id
@@ -145,11 +149,11 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
                      WHERE r.exam_student_id = es.id) AS maxScore,
                    (SELECT AVG(es2.score) FROM exam_student es2
                       JOIN class_students cs2 ON cs2.user_id = es2.user_id AND cs2.class_id = :classId
-                      WHERE es2.exam_id = e.id AND es2.status = 'DA_LAM') AS classAverage
+                      WHERE es2.exam_id = e.id AND es2.status = 'DA_LAM' AND es2.confirmed_at IS NOT NULL) AS classAverage
             FROM exam_student es
             JOIN exams e         ON e.id = es.exam_id
             JOIN exam_classes ec ON ec.exam_id = e.id AND ec.class_id = :classId
-            WHERE es.user_id = :studentId AND es.status = 'DA_LAM'
+            WHERE es.user_id = :studentId AND es.status = 'DA_LAM' AND es.confirmed_at IS NOT NULL
               AND (CAST(:topicId AS BIGINT) IS NULL OR e.topic_id = :topicId)
             ORDER BY e.publish_at NULLS LAST, es.submitted_at
             """, nativeQuery = true)
@@ -167,7 +171,7 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
                    COUNT(*) FILTER (WHERE r.correct IS FALSE) AS incorrectCount,
                    COUNT(*) FILTER (WHERE r.correct IS NULL)  AS ungradedCount
             FROM exam_question_result r
-            JOIN exam_student es   ON es.id = r.exam_student_id AND es.status = 'DA_LAM'
+            JOIN exam_student es   ON es.id = r.exam_student_id AND es.status = 'DA_LAM' AND es.confirmed_at IS NOT NULL
             JOIN exam_classes ec   ON ec.exam_id = es.exam_id AND ec.class_id = :classId
             JOIN class_students cs ON cs.class_id = :classId AND cs.user_id = es.user_id
             JOIN exam_exercises ee ON ee.id = r.exam_exercise_id
@@ -190,7 +194,7 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
                    COUNT(*) FILTER (WHERE r.correct IS FALSE) AS incorrectCount,
                    COUNT(*) FILTER (WHERE r.correct IS NULL)  AS ungradedCount
             FROM exam_question_result r
-            JOIN exam_student es   ON es.id = r.exam_student_id AND es.status = 'DA_LAM'
+            JOIN exam_student es   ON es.id = r.exam_student_id AND es.status = 'DA_LAM' AND es.confirmed_at IS NOT NULL
             JOIN exam_classes ec   ON ec.exam_id = es.exam_id AND ec.class_id = :classId
             JOIN class_students cs ON cs.class_id = :classId AND cs.user_id = es.user_id
             JOIN exam_exercises ee ON ee.id = r.exam_exercise_id
@@ -243,7 +247,7 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
                        COUNT(*) AS c
                 FROM exam_student es
                 JOIN class_students cs ON cs.user_id = es.user_id AND cs.class_id = :classId
-                WHERE es.exam_id = :examId AND es.status = 'DA_LAM' AND es.score IS NOT NULL
+                WHERE es.exam_id = :examId AND es.status = 'DA_LAM' AND es.confirmed_at IS NOT NULL AND es.score IS NOT NULL
                 GROUP BY 1
             ) cnt ON cnt.bkt = b.idx
             ORDER BY b.idx
@@ -261,16 +265,16 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
                    COUNT(*) AS submittedCount,
                    (SELECT es2.score FROM exam_student es2
                       JOIN class_students cs2 ON cs2.user_id = es2.user_id AND cs2.class_id = :classId
-                      WHERE es2.exam_id = :examId AND es2.status = 'DA_LAM'
+                      WHERE es2.exam_id = :examId AND es2.status = 'DA_LAM' AND es2.confirmed_at IS NOT NULL
                         AND es2.user_id = :studentId) AS studentScore,
                    COUNT(*) FILTER (WHERE CAST(:studentId AS BIGINT) IS NOT NULL AND es.score <=
                       (SELECT es3.score FROM exam_student es3
                          JOIN class_students cs3 ON cs3.user_id = es3.user_id AND cs3.class_id = :classId
-                         WHERE es3.exam_id = :examId AND es3.status = 'DA_LAM'
+                         WHERE es3.exam_id = :examId AND es3.status = 'DA_LAM' AND es3.confirmed_at IS NOT NULL
                            AND es3.user_id = :studentId)) AS leCount
             FROM exam_student es
             JOIN class_students cs ON cs.user_id = es.user_id AND cs.class_id = :classId
-            WHERE es.exam_id = :examId AND es.status = 'DA_LAM' AND es.score IS NOT NULL
+            WHERE es.exam_id = :examId AND es.status = 'DA_LAM' AND es.confirmed_at IS NOT NULL AND es.score IS NOT NULL
             """, nativeQuery = true)
     ScoreStatsProjection scoreStats(@Param("examId") Long examId,
                                     @Param("classId") Long classId,
@@ -286,7 +290,7 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
                    COALESCE(SUM(r.earned)     FILTER (WHERE r.correct IS NOT NULL),0) AS earned,
                    COALESCE(SUM(r.max_points) FILTER (WHERE r.correct IS NOT NULL),0) AS max
             FROM exam_question_result r
-            JOIN exam_student es   ON es.id = r.exam_student_id AND es.status = 'DA_LAM'
+            JOIN exam_student es   ON es.id = r.exam_student_id AND es.status = 'DA_LAM' AND es.confirmed_at IS NOT NULL
             JOIN exam_classes ec   ON ec.exam_id = es.exam_id AND ec.class_id = :classId
             JOIN class_students cs ON cs.class_id = :classId AND cs.user_id = es.user_id
             JOIN exam_exercises ee ON ee.id = r.exam_exercise_id
@@ -308,7 +312,7 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
                    AVG(CASE WHEN mx.max_score > 0 THEN es.score / mx.max_score END) AS avgPct
             FROM class_students cs
             JOIN users u ON u.id = cs.user_id
-            LEFT JOIN exam_student es ON es.user_id = cs.user_id AND es.status = 'DA_LAM'
+            LEFT JOIN exam_student es ON es.user_id = cs.user_id AND es.status = 'DA_LAM' AND es.confirmed_at IS NOT NULL
                  AND EXISTS (SELECT 1 FROM exam_classes ec WHERE ec.exam_id = es.exam_id AND ec.class_id = :classId)
             LEFT JOIN LATERAL (
                 SELECT COALESCE(SUM(CASE
@@ -332,7 +336,7 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
                    COUNT(*) FILTER (WHERE sa.status = 'CO_PHEP')      AS coPhep,
                    COUNT(*) FILTER (WHERE sa.status = 'CHUA_CHECKIN') AS chuaCheckin
             FROM session_attendance sa
-            JOIN class_sessions ses ON ses.id = sa.session_id
+            JOIN class_sessions ses ON ses.id = sa.session_id AND sa.confirmed_at IS NOT NULL
                  AND ses.class_id = :classId AND ses.status = 'DONE'
             WHERE sa.user_id = :studentId
               AND (CAST(:topicId AS BIGINT) IS NULL OR ses.topic_id = :topicId)
@@ -348,7 +352,7 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
                    COUNT(*) FILTER (WHERE sa.status = 'VANG')    AS vang,
                    COUNT(*) FILTER (WHERE sa.status = 'CO_PHEP') AS coPhep
             FROM session_attendance sa
-            JOIN class_sessions ses ON ses.id = sa.session_id
+            JOIN class_sessions ses ON ses.id = sa.session_id AND sa.confirmed_at IS NOT NULL
                  AND ses.class_id = :classId AND ses.status = 'DONE'
             WHERE sa.user_id = :studentId
               AND (CAST(:topicId AS BIGINT) IS NULL OR ses.topic_id = :topicId)
@@ -367,7 +371,7 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
                    COUNT(*) FILTER (WHERE sa.status = 'CO_PHEP')      AS coPhep,
                    COUNT(*) FILTER (WHERE sa.status = 'CHUA_CHECKIN') AS chuaCheckin
             FROM session_attendance sa
-            JOIN class_sessions ses ON ses.id = sa.session_id
+            JOIN class_sessions ses ON ses.id = sa.session_id AND sa.confirmed_at IS NOT NULL
                  AND ses.class_id = :classId AND ses.status = 'DONE'
             JOIN class_students cs ON cs.class_id = :classId AND cs.user_id = sa.user_id
             WHERE (CAST(:topicId AS BIGINT) IS NULL OR ses.topic_id = :topicId)
@@ -382,7 +386,7 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
                    COUNT(*) FILTER (WHERE sa.status = 'VANG')    AS vang,
                    COUNT(*) FILTER (WHERE sa.status = 'CO_PHEP') AS coPhep
             FROM session_attendance sa
-            JOIN class_sessions ses ON ses.id = sa.session_id
+            JOIN class_sessions ses ON ses.id = sa.session_id AND sa.confirmed_at IS NOT NULL
                  AND ses.class_id = :classId AND ses.status = 'DONE'
             JOIN class_students cs ON cs.class_id = :classId AND cs.user_id = sa.user_id
             WHERE (CAST(:topicId AS BIGINT) IS NULL OR ses.topic_id = :topicId)
@@ -397,7 +401,7 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
                    COUNT(*) FILTER (WHERE sa.status = 'CO_MAT') AS coMat,
                    COUNT(*) FILTER (WHERE sa.status = 'TRE')    AS tre
             FROM session_attendance sa
-            JOIN class_sessions ses ON ses.id = sa.session_id
+            JOIN class_sessions ses ON ses.id = sa.session_id AND sa.confirmed_at IS NOT NULL
                  AND ses.class_id = :classId AND ses.status = 'DONE'
             JOIN class_students cs ON cs.class_id = :classId AND cs.user_id = sa.user_id
             GROUP BY sa.user_id
@@ -419,7 +423,7 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
             JOIN exam_classes ec    ON ec.exam_id = e.id AND ec.class_id = :classId
             JOIN class_students cs  ON cs.class_id = :classId AND cs.user_id = es.user_id
             JOIN topics t           ON t.id = e.topic_id
-            WHERE es.status = 'DA_LAM'
+            WHERE es.status = 'DA_LAM' AND es.confirmed_at IS NOT NULL
             GROUP BY e.topic_id, t.name, t.sort_order, es.user_id
             """, nativeQuery = true)
     List<StudentTopicAvgProjection> studentTopicAverages(@Param("classId") Long classId);
@@ -435,7 +439,7 @@ public interface ReportAggregationRepository extends Repository<ExamStudent, Lon
                    COUNT(*) FILTER (WHERE r.correct IS FALSE) AS incorrectCount,
                    COUNT(*) FILTER (WHERE r.correct IS NULL)  AS ungradedCount
             FROM exam_question_result r
-            JOIN exam_student es   ON es.id = r.exam_student_id AND es.status = 'DA_LAM'
+            JOIN exam_student es   ON es.id = r.exam_student_id AND es.status = 'DA_LAM' AND es.confirmed_at IS NOT NULL
             JOIN exam_classes ec   ON ec.exam_id = es.exam_id AND ec.class_id = :classId
             JOIN class_students cs ON cs.class_id = :classId AND cs.user_id = es.user_id
             JOIN exam_exercises ee ON ee.id = r.exam_exercise_id

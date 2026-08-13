@@ -72,6 +72,17 @@ public class ClassOutlineService {
     private final ReportAggregationRepository aggregationRepository;
 
     public ClassOutlineResponse outline(Long classId, Long studentIdParam) {
+        return outline(classId, studentIdParam, false);
+    }
+
+    /**
+     * @param onlyDone true = chi tra chuong/buoi DA HOC (status DONE), sap
+     *                 xep theo ngay GAN NHAT (moi nhat truoc) — dung cho man
+     *                 Bao cao Mobile (yeu cau nguoi dung 13/08/2026). false =
+     *                 giu nguyen hanh vi cu (toan bo buoi, thu tu chuong hoc
+     *                 theo sortOrder) cho man Chi tiet khoa hoc.
+     */
+    public ClassOutlineResponse outline(Long classId, Long studentIdParam, boolean onlyDone) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         SchoolClass clazz = classRepository.findById(classId)
                 .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
@@ -135,10 +146,14 @@ public class ClassOutlineService {
                     .getOrDefault(s.getId(), List.of()).stream()
                     .map(e -> toExam(e, esByExam.get(e.getId()), maxScoreByExam.get(e.getId())))
                     .toList();
-            // Danh so TOAN BO buoi theo thoi gian, KE CA buoi da huy: neu bo
-            // buoi huy ra thi moi lan huy se doi so cua tat ca buoi phia sau
+            // Danh so TOAN BO buoi theo thoi gian, KE CA buoi da huy/chua toi
+            // (kho ordinal++ o ngoai dieu kien onlyDone): neu bo buoi ra khoi
+            // danh so thi moi lan loc se doi so cua tat ca buoi phia sau
             // (hoc vien dang nho "Buoi 5" hom sau thanh "Buoi 4").
-            g.sessions.add(toSession(s, ordinal++, attBySession.get(s.getId()), sessionExams));
+            int thisOrdinal = ordinal++;
+            if (!onlyDone || s.getStatus() == SessionStatus.DONE) {
+                g.sessions.add(toSession(s, thisOrdinal, attBySession.get(s.getId()), sessionExams));
+            }
         }
         for (Exam e : exams) {
             if (e.getSession() != null) {
@@ -152,11 +167,25 @@ public class ClassOutlineService {
             g.exams.add(toExam(e, esByExam.get(e.getId()), maxScoreByExam.get(e.getId())));
         }
 
-        List<OutlineTopicGroup> groups = byTopic.values().stream()
-                .sorted(GROUP_ORDER)
-                .map(g -> new OutlineTopicGroup(
-                        g.topicId, g.topicName, g.sortOrder, g.sessions, g.exams))
-                .toList();
+        List<OutlineTopicGroup> groups;
+        if (onlyDone) {
+            // Chi giu chuong co it nhat 1 buoi DA HOC, moi buoi/chuong sap
+            // theo ngay GAN NHAT (moi nhat truoc) thay vi thu tu chuong trinh.
+            groups = byTopic.values().stream()
+                    .filter(g -> !g.sessions.isEmpty())
+                    .sorted(Comparator.comparing(
+                            (GroupAcc g) -> latestSessionDate(g.sessions)).reversed())
+                    .map(g -> new OutlineTopicGroup(
+                            g.topicId, g.topicName, g.sortOrder,
+                            sortedByDateDesc(g.sessions), g.exams))
+                    .toList();
+        } else {
+            groups = byTopic.values().stream()
+                    .sorted(GROUP_ORDER)
+                    .map(g -> new OutlineTopicGroup(
+                            g.topicId, g.topicName, g.sortOrder, g.sessions, g.exams))
+                    .toList();
+        }
 
         return new ClassOutlineResponse(
                 clazz.getId(), clazz.getCode(), clazz.getName(),
@@ -291,6 +320,19 @@ public class ClassOutlineService {
         return auth.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toSet());
+    }
+
+    private static java.time.LocalDate latestSessionDate(List<OutlineSession> sessions) {
+        return sessions.stream()
+                .map(OutlineSession::date)
+                .max(Comparator.naturalOrder())
+                .orElse(java.time.LocalDate.MIN);
+    }
+
+    private static List<OutlineSession> sortedByDateDesc(List<OutlineSession> sessions) {
+        return sessions.stream()
+                .sorted(Comparator.comparing(OutlineSession::date).reversed())
+                .toList();
     }
 
     /** Nhom "Chua phan chuyen de" (sortOrder null) luon xep CUOI. */

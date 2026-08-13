@@ -23,6 +23,8 @@ public record LeaveItem(
         String status,
         String reviewedBy,
         Instant reviewedAt,
+        String parentConfirmedBy,
+        Instant parentConfirmedAt,
         Instant createdAt
 ) {
     public static LeaveItem from(LeaveRequest e) {
@@ -41,6 +43,8 @@ public record LeaveItem(
                 e.getStatus() != null ? e.getStatus().name() : null,
                 e.getReviewedBy() != null ? e.getReviewedBy().getFullName() : null,
                 e.getReviewedAt(),
+                e.getParentConfirmedBy() != null ? e.getParentConfirmedBy().getFullName() : null,
+                e.getParentConfirmedAt(),
                 e.getCreatedAt());
     }
 }

@@ -236,6 +236,19 @@ public class ScheduleController {
         return ApiResponse.ok();
     }
 
+    /**
+     * GV/Admin/nhan vien xac nhan diem danh — BAT BUOC truoc khi tinh vao
+     * bao cao (yeu cau nguoi dung 13/08/2026).
+     */
+    @PatchMapping("/sessions/{id}/attendance/{userId}/confirm")
+    @PreAuthorize("hasAuthority('ATTENDANCE:CONFIRM')")
+    public ApiResponse<Void> confirmAttendance(
+            @PathVariable Long id,
+            @PathVariable Long userId) {
+        scheduleService.confirmAttendance(id, userId);
+        return ApiResponse.ok();
+    }
+
     // ---------------------- Timetable ----------------------
 
     @GetMapping("/timetable")

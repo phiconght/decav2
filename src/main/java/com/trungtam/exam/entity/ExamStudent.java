@@ -68,4 +68,15 @@ public class ExamStudent extends BaseEntity {
      */
     @Column(name = "answers", columnDefinition = "TEXT")
     private String answers;
+
+    /**
+     * Nhan vien/GV xac nhan bai da nop (status DA_LAM) — BAT BUOC truoc khi
+     * ket qua duoc tinh vao bao cao (yeu cau nguoi dung 13/08/2026).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "confirmed_by")
+    private User confirmedBy;
+
+    @Column(name = "confirmed_at")
+    private Instant confirmedAt;
 }

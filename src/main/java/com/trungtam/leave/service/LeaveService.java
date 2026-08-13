@@ -96,9 +96,10 @@ public class LeaveService {
             }
         }
 
+        User requester = currentUser();
         LeaveRequest entity = new LeaveRequest();
         entity.setStudent(student);
-        entity.setRequestedBy(currentUser());
+        entity.setRequestedBy(requester);
         entity.setScope(req.scope());
         entity.setSession(session);
         entity.setClazz(clazz);
@@ -108,8 +109,37 @@ public class LeaveService {
         }
         entity.setReason(req.reason());
         entity.setStatus(LeaveStatus.PENDING);
+        // PH tu gui don thi coi nhu da tu xac nhan luon (yeu cau 13/08/2026);
+        // don do HOC SINH gui thi can PH xac nhan rieng qua confirmByParent().
+        if (hasRole(requester, RoleName.PARENT)) {
+            entity.setParentConfirmedBy(requester);
+            entity.setParentConfirmedAt(Instant.now());
+        }
         LeaveRequest saved = leaveRequestRepository.save(entity);
         notifyLeaveSubmitted(saved);
+        return LeaveItem.from(saved);
+    }
+
+    /**
+     * PHU HUYNH xac nhan don xin nghi cua con — BAT BUOC truoc khi GV/nhan
+     * vien duyet duoc (ADMIN duyet bat ky luc nao, xem {@link #approve}).
+     */
+    @Transactional
+    public LeaveItem confirmByParent(Long id) {
+        LeaveRequest leave = findOrThrow(id);
+        User me = currentUser();
+        boolean isParentOfStudent = studentParentRepository
+                .findByStudentIdAndParentId(leave.getStudent().getId(), me.getId())
+                .isPresent();
+        if (!hasRole(me, RoleName.ADMIN) && !isParentOfStudent) {
+            throw new AppException(ErrorCode.LEAVE_NOT_PARENT_OF_STUDENT);
+        }
+        if (leave.getParentConfirmedAt() != null) {
+            throw new AppException(ErrorCode.LEAVE_ALREADY_CONFIRMED);
+        }
+        leave.setParentConfirmedBy(me);
+        leave.setParentConfirmedAt(Instant.now());
+        LeaveRequest saved = leaveRequestRepository.save(leave);
         return LeaveItem.from(saved);
     }
 
@@ -136,9 +166,11 @@ public class LeaveService {
     public LeaveItem approve(Long id) {
         LeaveRequest leave = findOrThrow(id);
         ensureNotReviewed(leave);
+        User me = currentUser();
+        requireParentConfirmedUnlessAdmin(leave, me);
 
         leave.setStatus(LeaveStatus.APPROVED);
-        leave.setReviewedBy(currentUser());
+        leave.setReviewedBy(me);
         leave.setReviewedAt(Instant.now());
         LeaveRequest saved = leaveRequestRepository.save(leave);
 
@@ -158,6 +190,45 @@ public class LeaveService {
         LeaveRequest saved = leaveRequestRepository.save(leave);
         notifyLeaveResult(saved, false);
         return LeaveItem.from(saved);
+    }
+
+    /**
+     * ADMIN dat truc tiep bat ky trang thai nao (PENDING/APPROVED/REJECTED),
+     * bo qua ca dieu kien "da xu ly" lan "can PH xac nhan" (yeu cau 13/08/2026).
+     */
+    @Transactional
+    public LeaveItem adminSetStatus(Long id, LeaveStatus status) {
+        User me = currentUser();
+        if (!hasRole(me, RoleName.ADMIN)) {
+            throw new AppException(ErrorCode.ACCESS_DENIED);
+        }
+        LeaveRequest leave = findOrThrow(id);
+        leave.setStatus(status);
+        if (status == LeaveStatus.PENDING) {
+            // Dat lai "cho duyet" -> chua co ai duyet, khong gan reviewer.
+            leave.setReviewedBy(null);
+            leave.setReviewedAt(null);
+        } else {
+            leave.setReviewedBy(me);
+            leave.setReviewedAt(Instant.now());
+        }
+        LeaveRequest saved = leaveRequestRepository.save(leave);
+        if (status == LeaveStatus.APPROVED) {
+            applyLeaveAttendance(saved);
+        }
+        if (status != LeaveStatus.PENDING) {
+            notifyLeaveResult(saved, status == LeaveStatus.APPROVED);
+        }
+        return LeaveItem.from(saved);
+    }
+
+    private void requireParentConfirmedUnlessAdmin(LeaveRequest leave, User approver) {
+        if (hasRole(approver, RoleName.ADMIN)) {
+            return;
+        }
+        if (leave.getParentConfirmedAt() == null) {
+            throw new AppException(ErrorCode.LEAVE_PARENT_CONFIRMATION_REQUIRED);
+        }
     }
 
     /**

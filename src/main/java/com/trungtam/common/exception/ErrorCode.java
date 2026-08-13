@@ -67,6 +67,9 @@ public enum ErrorCode {
     EXAM_NOT_AVAILABLE(HttpStatus.FORBIDDEN, "De thi chua duoc phat hanh cho ban"),
     EXAM_ALREADY_SUBMITTED(HttpStatus.BAD_REQUEST, "Bai thi da duoc nop"),
     EXAM_TIME_OVER(HttpStatus.BAD_REQUEST, "Da het thoi gian lam bai"),
+    EXAM_NOT_SUBMITTED(HttpStatus.BAD_REQUEST, "Bai thi chua duoc nop, khong the xac nhan"),
+    EXAM_ALREADY_CONFIRMED(HttpStatus.BAD_REQUEST, "Bai thi nay da duoc xac nhan"),
+    EXAM_STUDENT_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay ban ghi bai thi"),
 
     // 404/409 — Room (co so / phong / ngay nghi)
     BRANCH_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay co so"),
@@ -87,6 +90,8 @@ public enum ErrorCode {
     TEACHER_TIME_CONFLICT(HttpStatus.CONFLICT, "Giao vien da co buoi hoc trung gio"),
     QR_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "Ma QR khong hop le hoac da het han"),
     NOT_IN_ROSTER(HttpStatus.FORBIDDEN, "Hoc vien khong thuoc buoi hoc"),
+    ATTENDANCE_NOT_FOUND(HttpStatus.NOT_FOUND, "Chua co ban ghi diem danh"),
+    ATTENDANCE_ALREADY_CONFIRMED(HttpStatus.BAD_REQUEST, "Diem danh nay da duoc xac nhan"),
 
     // 400/403 — Cham cong giao vien
     NOT_SESSION_TEACHER(HttpStatus.FORBIDDEN, "Ban khong phai giao vien cua buoi hoc nay"),
@@ -103,6 +108,10 @@ public enum ErrorCode {
     LEAVE_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay don nghi phep"),
     LEAVE_ALREADY_REVIEWED(HttpStatus.BAD_REQUEST, "Don nghi phep da duoc xu ly"),
     LEAVE_INVALID_RANGE(HttpStatus.BAD_REQUEST, "Pham vi xin nghi khong hop le"),
+    LEAVE_ALREADY_CONFIRMED(HttpStatus.BAD_REQUEST, "Don nghi da duoc phu huynh xac nhan"),
+    LEAVE_PARENT_CONFIRMATION_REQUIRED(HttpStatus.BAD_REQUEST,
+            "Don nghi can phu huynh xac nhan truoc khi duyet"),
+    LEAVE_NOT_PARENT_OF_STUDENT(HttpStatus.FORBIDDEN, "Ban khong phai phu huynh cua hoc vien nay"),
 
     // 404/403/400 — Bao cao (nhan xet)
     REPORT_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay nhan xet"),

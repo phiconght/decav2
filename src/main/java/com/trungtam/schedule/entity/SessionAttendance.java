@@ -53,4 +53,17 @@ public class SessionAttendance extends BaseEntity {
 
     @Column(name = "check_out_at")
     private Instant checkOutAt;
+
+    /**
+     * GV/Admin/nhan vien xac nhan diem danh nay dung — BAT BUOC truoc khi
+     * tinh vao bao cao (yeu cau nguoi dung 13/08/2026). Bat ky lan doi
+     * status nao (tu check-in/out cua HV lan setAttendance thu cong) deu
+     * reset 2 truong nay ve null, buoc xac nhan lai.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "confirmed_by")
+    private User confirmedBy;
+
+    @Column(name = "confirmed_at")
+    private Instant confirmedAt;
 }

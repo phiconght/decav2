@@ -76,4 +76,18 @@ public class LeaveRequest extends BaseEntity {
 
     @Column(name = "reviewed_at")
     private Instant reviewedAt;
+
+    /**
+     * PHU HUYNH xac nhan don nghi cua con — BAT BUOC truoc khi GV/nhan vien
+     * (khong phai ADMIN) duoc duyet (yeu cau nguoi dung 13/08/2026). Neu
+     * chinh phu huynh la nguoi tao don (requestedBy la PH) thi tu dong coi
+     * nhu da xac nhan ngay luc tao. ADMIN duyet duoc bat ky luc nao, bo qua
+     * dieu kien nay.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_confirmed_by")
+    private User parentConfirmedBy;
+
+    @Column(name = "parent_confirmed_at")
+    private Instant parentConfirmedAt;
 }

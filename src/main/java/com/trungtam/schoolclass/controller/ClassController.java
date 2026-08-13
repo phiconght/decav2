@@ -161,8 +161,9 @@ public class ClassController {
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<ClassOutlineResponse> outline(
             @PathVariable Long id,
-            @RequestParam(required = false) Long studentId) {
-        return ApiResponse.ok(classOutlineService.outline(id, studentId));
+            @RequestParam(required = false) Long studentId,
+            @RequestParam(required = false, defaultValue = "false") boolean onlyDone) {
+        return ApiResponse.ok(classOutlineService.outline(id, studentId, onlyDone));
     }
 
     /** Dropdown giao vien cho man xep lich (gate CLASS:READ). */

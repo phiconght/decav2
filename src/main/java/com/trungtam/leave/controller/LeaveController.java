@@ -1,6 +1,7 @@
 package com.trungtam.leave.controller;
 
 import com.trungtam.common.dto.ApiResponse;
+import com.trungtam.leave.dto.request.AdminSetLeaveStatusRequest;
 import com.trungtam.leave.dto.request.CreateLeaveRequest;
 import com.trungtam.leave.dto.request.LeaveSearchParams;
 import com.trungtam.leave.dto.response.LeaveItem;
@@ -50,5 +51,21 @@ public class LeaveController {
     @PreAuthorize("hasAuthority('LEAVE:APPROVE')")
     public ApiResponse<LeaveItem> reject(@PathVariable Long id) {
         return ApiResponse.ok(leaveService.reject(id));
+    }
+
+    /** PHU HUYNH xac nhan don xin nghi cua con (yeu cau nguoi dung 13/08/2026). */
+    @PatchMapping("/{id}/parent-confirm")
+    @PreAuthorize("hasAuthority('LEAVE:CONFIRM')")
+    public ApiResponse<LeaveItem> confirmByParent(@PathVariable Long id) {
+        return ApiResponse.ok(leaveService.confirmByParent(id));
+    }
+
+    /** ADMIN dat truc tiep bat ky trang thai nao, bo qua dieu kien PH xac nhan. */
+    @PatchMapping("/{id}/admin-status")
+    @PreAuthorize("hasAuthority('LEAVE:APPROVE')")
+    public ApiResponse<LeaveItem> adminSetStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody AdminSetLeaveStatusRequest request) {
+        return ApiResponse.ok(leaveService.adminSetStatus(id, request.status()));
     }
 }
