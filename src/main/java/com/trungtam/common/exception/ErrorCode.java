@@ -42,6 +42,14 @@ public enum ErrorCode {
     // 404 — Exercise
     EXERCISE_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay bai tap"),
 
+    // 400/404 — Nhap bai tap theo lo (import batch, Word/AI)
+    IMPORT_DATA_FILE_INVALID(HttpStatus.BAD_REQUEST, "File du lieu khong doc duoc hoac sai cau truc"),
+    IMPORT_ROW_INVALID(HttpStatus.BAD_REQUEST, "Du lieu trong file khong hop le"),
+    IMPORT_BATCH_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay lo nhap"),
+    IMPORT_BATCH_NOT_IN_PROGRESS(HttpStatus.BAD_REQUEST, "Lo nhap nay da hoan tat, khong the khoi phuc cau da xoa"),
+    EXERCISE_STATUS_NOT_PENDING(HttpStatus.BAD_REQUEST, "Chi bai tap dang cho xac nhan moi thao tac duoc"),
+    EXERCISE_STATUS_NOT_DELETED(HttpStatus.BAD_REQUEST, "Chi bai tap da xoa moi khoi phuc duoc"),
+
     // 404 — Subject
     SUBJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay mon hoc"),
 
@@ -54,6 +62,12 @@ public enum ErrorCode {
 
     // 400 — Class enrollment
     NOT_A_STUDENT(HttpStatus.BAD_REQUEST, "Nguoi dung khong phai hoc sinh"),
+    CLASS_NOT_PURCHASABLE(HttpStatus.BAD_REQUEST, "Khoa hoc nay khong mo dang ky bang Xu"),
+    CLASS_NOT_ACTIVE(HttpStatus.BAD_REQUEST, "Khoa hoc hien khong nhan dang ky"),
+    ALREADY_ENROLLED(HttpStatus.BAD_REQUEST, "Ban da tham gia khoa hoc nay roi"),
+    CLASS_PAYMENT_TYPE_INVALID(HttpStatus.BAD_REQUEST, "Lop nay khong dung hinh thuc thanh toan sau (chuyen khoan)"),
+    CLASS_NOT_ONLINE(HttpStatus.BAD_REQUEST, "Lop nay khong dung hinh thuc diem danh truc tuyen"),
+    SELF_CHECKIN_TIME_INVALID(HttpStatus.BAD_REQUEST, "Ngoai khung gio diem danh cua buoi hoc"),
 
     // 404 — Exam
     EXAM_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay de thi"),
@@ -128,6 +142,7 @@ public enum ErrorCode {
     INVOICE_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay dot thu hoc phi"),
     INVOICE_STATUS_INVALID(HttpStatus.BAD_REQUEST, "Trang thai dot thu khong hop le cho thao tac nay"),
     INVOICE_DUPLICATE_PERIOD(HttpStatus.CONFLICT, "Hoc vien da co dot thu trong ky nay"),
+    INVOICE_ADJUSTMENT_INVALID(HttpStatus.BAD_REQUEST, "Khoan dieu chinh lam so tien hoc phi bi am"),
     SESSION_ALREADY_STARTED(HttpStatus.BAD_REQUEST, "Buoi hoc da bat dau/ket thuc, khong sua gia duoc"),
     INVALID_DISCOUNT(HttpStatus.BAD_REQUEST, "Muc giam gia phai tu 0 den 100"),
 
@@ -135,6 +150,10 @@ public enum ErrorCode {
     COIN_AMOUNT_INVALID(HttpStatus.BAD_REQUEST, "So Xu dieu chinh phai khac 0"),
     COIN_BALANCE_INSUFFICIENT(HttpStatus.BAD_REQUEST, "So du Xu khong du de tru"),
     COIN_USER_NOT_STUDENT(HttpStatus.BAD_REQUEST, "Chi hoc vien moi co vi Xu"),
+    COIN_TOPUP_AMOUNT_INVALID(HttpStatus.BAD_REQUEST, "So tien nap toi thieu 10.000d"),
+    COIN_TOPUP_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay yeu cau nap Xu"),
+    COIN_TOPUP_STATUS_INVALID(HttpStatus.BAD_REQUEST, "Trang thai yeu cau nap Xu khong hop le cho thao tac nay"),
+    COIN_TOPUP_ADJUSTMENT_INVALID(HttpStatus.BAD_REQUEST, "Khoan dieu chinh lam so Xu bi am"),
 
     // 400 — File validation
     FILE_EMPTY(HttpStatus.BAD_REQUEST, "File rong"),

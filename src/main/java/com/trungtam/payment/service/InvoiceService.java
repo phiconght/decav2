@@ -26,6 +26,7 @@ import com.trungtam.payment.repository.TuitionInvoiceItemRepository;
 import com.trungtam.payment.repository.TuitionInvoiceRepository;
 import com.trungtam.schedule.entity.ClassSession;
 import com.trungtam.schedule.repository.ClassSessionRepository;
+import com.trungtam.schoolclass.entity.PaymentType;
 import com.trungtam.schoolclass.entity.SchoolClass;
 import com.trungtam.schoolclass.repository.SchoolClassRepository;
 import com.trungtam.security.SecurityUtils;
@@ -82,6 +83,7 @@ public class InvoiceService {
     /** Preview dot thu ca lop trong ky — KHONG ghi DB (SPEC_ThanhToan §2.4). */
     public List<InvoicePreviewItem> preview(Long classId, LocalDate from, LocalDate to) {
         SchoolClass clazz = findClassOrThrow(classId);
+        validatePaymentType(clazz);
         validatePeriod(from, to);
         List<User> roster = classRepository.findStudentsByClassIds(List.of(classId));
         List<InvoicePreviewItem> result = new ArrayList<>();
@@ -122,6 +124,7 @@ public class InvoiceService {
     @Transactional
     public List<InvoiceResponse> createBatch(CreateInvoiceBatchRequest req) {
         SchoolClass clazz = findClassOrThrow(req.classId());
+        validatePaymentType(clazz);
         validatePeriod(req.from(), req.to());
 
         List<User> targets = resolveTargets(clazz, req.studentIds());
@@ -263,6 +266,37 @@ public class InvoiceService {
         }
         if (req.note() != null) {
             inv.setNote(req.note());
+        }
+        return toResponse(invoiceRepository.save(inv));
+    }
+
+    /**
+     * Cong/tru truc tiep so tien hoc phi cua 1 dot thu — dung doc lap voi
+     * confirm() (khong gan voi buoc chuyen trang thai), cho phep Admin dieu
+     * chinh bat cu luc nao (kể cả sau khi da CONFIRMED/PAID), tru dot thu
+     * da CANCELLED. Cong don vao adjustmentAmount/adjustmentNote de giu
+     * lai lich su dieu chinh qua nhieu lan.
+     */
+    @Transactional
+    public InvoiceResponse adjust(Long invoiceId, BigDecimal adjustmentAmount, String adjustmentNote) {
+        TuitionInvoice inv = findOrThrow(invoiceId);
+        if (inv.getStatus() == InvoiceStatus.CANCELLED) {
+            throw new AppException(ErrorCode.INVOICE_STATUS_INVALID);
+        }
+        if (adjustmentAmount == null || adjustmentAmount.signum() == 0) {
+            throw new AppException(ErrorCode.INVOICE_ADJUSTMENT_INVALID);
+        }
+        BigDecimal finalAmount = inv.getAmount().add(adjustmentAmount);
+        if (finalAmount.signum() < 0) {
+            throw new AppException(ErrorCode.INVOICE_ADJUSTMENT_INVALID);
+        }
+        inv.setAmount(finalAmount);
+        inv.setAdjustmentAmount(inv.getAdjustmentAmount().add(adjustmentAmount));
+        String combinedNote = StringUtils.hasText(adjustmentNote) ? adjustmentNote : null;
+        if (combinedNote != null) {
+            inv.setAdjustmentNote(StringUtils.hasText(inv.getAdjustmentNote())
+                    ? inv.getAdjustmentNote() + "; " + combinedNote
+                    : combinedNote);
         }
         return toResponse(invoiceRepository.save(inv));
     }
@@ -435,6 +469,13 @@ public class InvoiceService {
         };
         Sort.Direction dir = "ascend".equals(order) ? Sort.Direction.ASC : Sort.Direction.DESC;
         return Sort.by(dir, sortField);
+    }
+
+    /** Chi lop POSTPAID_TRANSFER moi dung dot thu hoc phi VND (§SPEC_ThanhToan). */
+    private void validatePaymentType(SchoolClass clazz) {
+        if (clazz.getPaymentType() != PaymentType.POSTPAID_TRANSFER) {
+            throw new AppException(ErrorCode.CLASS_PAYMENT_TYPE_INVALID);
+        }
     }
 
     private void validatePeriod(LocalDate from, LocalDate to) {

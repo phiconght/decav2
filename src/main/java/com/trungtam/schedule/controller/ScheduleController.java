@@ -218,6 +218,14 @@ public class ScheduleController {
         return ApiResponse.ok();
     }
 
+    /** Diem danh tu bam nut cho lop ONLINE (khong can QR token) — xem ScheduleService#checkinOnlineSelf. */
+    @PostMapping("/sessions/{id}/self-checkin")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<Void> selfCheckinOnline(@PathVariable Long id) {
+        scheduleService.checkinOnlineSelf(id);
+        return ApiResponse.ok();
+    }
+
     // ---------------------- Diem danh ----------------------
 
     @GetMapping("/sessions/{id}/attendance")

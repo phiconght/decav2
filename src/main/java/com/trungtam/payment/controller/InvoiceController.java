@@ -1,6 +1,7 @@
 package com.trungtam.payment.controller;
 
 import com.trungtam.common.dto.ApiResponse;
+import com.trungtam.payment.dto.request.AdjustInvoiceRequest;
 import com.trungtam.payment.dto.request.ConfirmBatchRequest;
 import com.trungtam.payment.dto.request.CreateInvoiceBatchRequest;
 import com.trungtam.payment.dto.request.InvoiceSearchParams;
@@ -82,6 +83,15 @@ public class InvoiceController {
     @PreAuthorize("hasAuthority('FEE:WRITE')")
     public ApiResponse<InvoiceResponse> confirm(@PathVariable Long id) {
         return ApiResponse.ok(invoiceService.confirm(id));
+    }
+
+    @PostMapping("/{id}/adjust")
+    @PreAuthorize("hasAuthority('FEE:WRITE')")
+    public ApiResponse<InvoiceResponse> adjust(
+            @PathVariable Long id,
+            @Valid @RequestBody AdjustInvoiceRequest request) {
+        return ApiResponse.ok(
+                invoiceService.adjust(id, request.adjustmentAmount(), request.adjustmentNote()));
     }
 
     @PostMapping("/confirm-batch")

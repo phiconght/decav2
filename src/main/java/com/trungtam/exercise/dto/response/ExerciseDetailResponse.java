@@ -31,7 +31,10 @@ public record ExerciseDetailResponse(
         List<TrueFalseItemResponse> trueFalseItems,
         String createdBy,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        // Chi co gia tri khi bai tap thuoc 1 lo nhap (xem ImportBatch)
+        Long importBatchId,
+        Integer orderIndex
 ) {
     public static ExerciseDetailResponse from(Exercise e) {
         List<ChoiceOptionResponse> opts = null;
@@ -68,7 +71,9 @@ public record ExerciseDetailResponse(
                 tfItems,
                 e.getCreatedBy(),
                 e.getCreatedAt(),
-                e.getUpdatedAt()
+                e.getUpdatedAt(),
+                e.getImportBatch() != null ? e.getImportBatch().getId() : null,
+                e.getOrderIndex()
         );
     }
 }

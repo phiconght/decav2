@@ -28,7 +28,9 @@ public record InvoiceResponse(
         Instant paidAt,
         String note,
         Instant createdAt,
-        List<InvoiceItemLine> items
+        List<InvoiceItemLine> items,
+        BigDecimal adjustmentAmount,
+        String adjustmentNote
 ) {
     public static InvoiceResponse from(TuitionInvoice i, List<InvoiceItemLine> items) {
         return new InvoiceResponse(
@@ -50,6 +52,8 @@ public record InvoiceResponse(
                 i.getPaidAt(),
                 i.getNote(),
                 i.getCreatedAt(),
-                items);
+                items,
+                i.getAdjustmentAmount(),
+                i.getAdjustmentNote());
     }
 }

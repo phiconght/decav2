@@ -1,6 +1,7 @@
 package com.trungtam.exercise.controller;
 
 import com.trungtam.common.dto.ApiResponse;
+import com.trungtam.exercise.dto.request.ConfirmExercisesRequest;
 import com.trungtam.exercise.dto.request.CreateExerciseRequest;
 import com.trungtam.exercise.dto.request.ExerciseSearchParams;
 import com.trungtam.exercise.dto.request.UpdateStatusRequest;
@@ -77,5 +78,29 @@ public class ExerciseController {
     public ApiResponse<Void> delete(@PathVariable Long id) {
         exerciseService.delete(id);
         return ApiResponse.ok();
+    }
+
+    // ---- Nhap theo lo (import batch) — xem SPEC_NhapBaiTap_TuWord_QuaAI.md §6.1 ----
+
+    /** PENDING -> ACTIVE cho 1 bai (nut "Xac nhan" tren man duyet lo). */
+    @PostMapping("/{id}/confirm")
+    @PreAuthorize("hasAuthority('EXERCISE:WRITE')")
+    public ApiResponse<ExerciseDetailResponse> confirm(@PathVariable Long id) {
+        return ApiResponse.ok(exerciseService.confirm(id));
+    }
+
+    /** Xac nhan hang loat (nut "Xac nhan da chon"). */
+    @PostMapping("/confirm-batch")
+    @PreAuthorize("hasAuthority('EXERCISE:WRITE')")
+    public ApiResponse<Void> confirmBatch(@Valid @RequestBody ConfirmExercisesRequest request) {
+        exerciseService.confirmBatch(request.ids());
+        return ApiResponse.ok();
+    }
+
+    /** DELETED -> PENDING, chi trong luc lo van dang duyet (IN_PROGRESS). */
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasAuthority('EXERCISE:WRITE')")
+    public ApiResponse<ExerciseDetailResponse> restore(@PathVariable Long id) {
+        return ApiResponse.ok(exerciseService.restore(id));
     }
 }

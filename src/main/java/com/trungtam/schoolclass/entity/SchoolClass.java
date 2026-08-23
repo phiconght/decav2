@@ -60,6 +60,24 @@ public class SchoolClass extends BaseEntity {
     @Column(name = "price_per_session", nullable = false, precision = 12, scale = 0)
     private BigDecimal pricePerSession = BigDecimal.ZERO;
 
+    /**
+     * Gia Xu de HOC SINH TU dang ky tham gia lop (Mobile/Web) — TACH BIET
+     * pricePerSession (don gia tra GV). Null/0 = lop khong mo ban qua Xu.
+     * Chi co y nghia khi {@link #paymentType} = PREPAID_COIN.
+     */
+    @Column(name = "coin_price")
+    private Long coinPrice;
+
+    /** Hinh thuc thanh toan hoc phi cua LOP (ADMIN chon) — xem {@link PaymentType}. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_type", nullable = false, length = 20)
+    private PaymentType paymentType = PaymentType.PREPAID_COIN;
+
+    /** Hinh thuc hoc cua LOP, quyet dinh cach diem danh — xem {@link DeliveryMode}. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "delivery_mode", nullable = false, length = 20)
+    private DeliveryMode deliveryMode = DeliveryMode.OFFLINE;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(name = "class_students",
             joinColumns = @JoinColumn(name = "class_id"),

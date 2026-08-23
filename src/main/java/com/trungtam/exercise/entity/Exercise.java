@@ -79,4 +79,13 @@ public class Exercise extends BaseEntity {
     @OneToMany(mappedBy = "exercise", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("sortOrder ASC")
     private List<TrueFalseItem> trueFalseItems = new ArrayList<>();
+
+    /** Lo nhap tao ra bai nay (null = tao tay theo luong cu, khong qua lo). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "import_batch_id")
+    private ImportBatch importBatch;
+
+    /** Thu tu trong file nguon — chi co y nghia khi importBatch != null; giu nguyen ke ca sau khi DELETED. */
+    @Column(name = "order_index")
+    private Integer orderIndex;
 }

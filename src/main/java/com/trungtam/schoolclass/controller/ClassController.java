@@ -46,6 +46,31 @@ public class ClassController {
         return classService.search(params);
     }
 
+    /**
+     * Danh muc TOAN HE THONG (moi lop, ke ca lop chua ghi danh) — nguon cho
+     * man "Khám phá khóa học" (Mobile) va khoi marketing Trang chu.
+     * {@code isAuthenticated()} — KHONG gate CLASS:READ (quyen do chi cap
+     * ADMIN/TEACHER/EMPLOYEE, doi tuong man nay la moi vai tro ke ca STUDENT/
+     * PARENT). CHI XEM — khong dung de mo chi tiet buoi hoc/de thi.
+     */
+    @GetMapping("/catalog")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<List<com.trungtam.schoolclass.dto.response.ClassCatalogItem>> catalog() {
+        return ApiResponse.ok(classService.listCatalog());
+    }
+
+    /**
+     * HOC SINH TU dang ky tham gia 1 lop bang Xu — tru Xu + vao lop NGAY,
+     * khong can duyet. {@code isAuthenticated()} — KHONG gate CLASS:WRITE
+     * (hanh dong tren CHINH MINH, giong pattern /classes/me).
+     */
+    @PostMapping("/{id}/enroll")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<com.trungtam.schoolclass.dto.response.EnrollResponse> enroll(
+            @PathVariable Long id) {
+        return ApiResponse.ok(classService.enrollSelf(id));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('CLASS:READ')")
     public ApiResponse<ClassDetailResponse> getById(@PathVariable Long id) {

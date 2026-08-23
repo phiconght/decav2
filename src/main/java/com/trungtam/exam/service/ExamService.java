@@ -26,9 +26,11 @@ import com.trungtam.exam.repository.ExamStudentRepository;
 import com.trungtam.exam.repository.ExamSpec;
 import com.trungtam.schoolclass.entity.SchoolClass;
 import com.trungtam.exercise.entity.Exercise;
+import com.trungtam.exercise.entity.ExerciseStatus;
 import com.trungtam.exercise.entity.ExerciseType;
 import com.trungtam.exercise.entity.TrueFalseItem;
 import com.trungtam.exercise.repository.ExerciseRepository;
+import com.trungtam.exercise.service.ExerciseService;
 import com.trungtam.identity.entity.User;
 import com.trungtam.identity.repository.UserRepository;
 import com.trungtam.schoolclass.repository.SchoolClassRepository;
@@ -76,6 +78,7 @@ public class ExamService {
     private final com.trungtam.schedule.repository.ClassSessionRepository classSessionRepository;
     private final CodeGeneratorService codeGeneratorService;
     private final SecurityService securityService;
+    private final ExerciseService exerciseService;
 
     public ExamPageResponse search(ExamSearchParams params) {
         Specification<Exam> spec = ExamSpec.build(params);
@@ -353,6 +356,16 @@ public class ExamService {
                 ExamExerciseRequest er = req.exercises().get(i);
                 Exercise exercise = exerciseMap.get(er.exerciseId());
                 if (exercise == null) throw new AppException(ErrorCode.EXERCISE_NOT_FOUND);
+
+                // Gan bai PENDING (tu lo nhap) vao 1 de dang/se ACTIVE -> tu
+                // chuyen ACTIVE luon, khong bat xac nhan rieng nua (SPEC
+                // NhapBaiTap_TuWord_QuaAI.md §1.2, §6.5). De tao tu luong
+                // nhap lo (status PENDING tuong minh) KHONG kich hoat dieu
+                // nay — cac bai van cho xac nhan rieng tung cau.
+                if (exam.getStatus() == ExamStatus.ACTIVE && exercise.getStatus() == ExerciseStatus.PENDING) {
+                    exercise.setStatus(ExerciseStatus.ACTIVE);
+                    exerciseService.recomputeBatchCompletion(exercise.getImportBatch());
+                }
 
                 ExamExercise ee = new ExamExercise();
                 ee.setExam(exam);

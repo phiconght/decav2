@@ -26,6 +26,8 @@ public record TimetableItem(
         String attendanceStatus,
         boolean onLeave,
         // chi view TEACHER: trang thai cham cong GV (DUNG_GIO|VAO_TRE|VANG), null neu chua cham
-        String teacherAttendanceStatus
+        String teacherAttendanceStatus,
+        // ONLINE = HS tu bam nut Diem danh; OFFLINE = QR xoay vong / GV diem danh
+        String deliveryMode
 ) {
 }

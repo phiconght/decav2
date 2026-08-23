@@ -14,9 +14,12 @@ import com.trungtam.exercise.entity.ChoiceOption;
 import com.trungtam.exercise.entity.Exercise;
 import com.trungtam.exercise.entity.ExerciseStatus;
 import com.trungtam.exercise.entity.ExerciseType;
+import com.trungtam.exercise.entity.ImportBatch;
+import com.trungtam.exercise.entity.ImportBatchStatus;
 import com.trungtam.exercise.entity.TrueFalseItem;
 import com.trungtam.exercise.repository.ExerciseRepository;
 import com.trungtam.exercise.repository.ExerciseSpec;
+import com.trungtam.exercise.repository.ImportBatchRepository;
 import com.trungtam.subject.entity.Subject;
 import com.trungtam.subject.repository.SubjectRepository;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +44,7 @@ public class ExerciseService {
     private final SubjectRepository subjectRepository;
     private final com.trungtam.topic.repository.TopicRepository topicRepository;
     private final CodeGeneratorService codeGeneratorService;
+    private final ImportBatchRepository importBatchRepository;
 
     public ExercisePageResponse search(ExerciseSearchParams params) {
         Specification<Exercise> spec = ExerciseSpec.build(params);
@@ -75,9 +79,13 @@ public class ExerciseService {
     public ExerciseDetailResponse update(Long id, CreateExerciseRequest req) {
         Exercise exercise = findOrThrow(id);
         Subject subject = findSubjectOrThrow(req.subjectId());
-        // Xoa dap an cu truoc khi ghi moi (orphanRemoval xu ly DELETE)
+        // Xoa dap an cu truoc khi ghi moi (orphanRemoval xu ly DELETE) — flush
+        // ngay de DELETE thuc su chay truoc, tranh Hibernate INSERT dap an
+        // moi (is_correct=true) truoc khi dap an cu (cung is_correct=true)
+        // bi xoa, vi pham idx_choice_single_correct (unique index tai DB).
         exercise.getOptions().clear();
         exercise.getTrueFalseItems().clear();
+        exerciseRepository.saveAndFlush(exercise);
         // Giu nguyen code da sinh tu luc tao, chi cap nhat noi dung
         buildExercise(exercise, req, subject, exercise.getCode());
         validateMultipleChoice(req);
@@ -89,11 +97,82 @@ public class ExerciseService {
         Exercise exercise = findOrThrow(id);
         exercise.setStatus(req.status());
         exerciseRepository.save(exercise);
+        if (req.status() != ExerciseStatus.PENDING) {
+            recomputeBatchCompletion(exercise.getImportBatch());
+        }
     }
 
     @Transactional
     public void delete(Long id) {
         exerciseRepository.delete(findOrThrow(id));
+    }
+
+    // ------------------------------------------------------------------
+    // Nhap theo lo (import batch) — xem SPEC_NhapBaiTap_TuWord_QuaAI.md §6
+    // ------------------------------------------------------------------
+
+    /** PENDING -> ACTIVE cho 1 bai (nut "Xac nhan" rieng tung cau tren man duyet lo). */
+    @Transactional
+    public ExerciseDetailResponse confirm(Long id) {
+        Exercise exercise = findOrThrow(id);
+        if (exercise.getStatus() != ExerciseStatus.PENDING) {
+            throw new AppException(ErrorCode.EXERCISE_STATUS_NOT_PENDING);
+        }
+        exercise.setStatus(ExerciseStatus.ACTIVE);
+        Exercise saved = exerciseRepository.save(exercise);
+        recomputeBatchCompletion(saved.getImportBatch());
+        return ExerciseDetailResponse.from(saved);
+    }
+
+    /** Xac nhan hang loat — bo qua (khong loi) cac id khong con o trang thai PENDING. */
+    @Transactional
+    public void confirmBatch(List<Long> ids) {
+        for (Long id : ids) {
+            Exercise exercise = exerciseRepository.findById(id).orElse(null);
+            if (exercise == null || exercise.getStatus() != ExerciseStatus.PENDING) {
+                continue;
+            }
+            exercise.setStatus(ExerciseStatus.ACTIVE);
+            exerciseRepository.save(exercise);
+            recomputeBatchCompletion(exercise.getImportBatch());
+        }
+    }
+
+    /**
+     * DELETED -> PENDING (khoi phuc) — CHI cho phep khi bai thuoc 1 lo va lo
+     * do van dang IN_PROGRESS (con dang duyet, chua roi man hinh lo).
+     */
+    @Transactional
+    public ExerciseDetailResponse restore(Long id) {
+        Exercise exercise = findOrThrow(id);
+        if (exercise.getStatus() != ExerciseStatus.DELETED) {
+            throw new AppException(ErrorCode.EXERCISE_STATUS_NOT_DELETED);
+        }
+        ImportBatch batch = exercise.getImportBatch();
+        if (batch == null || batch.getStatus() != ImportBatchStatus.IN_PROGRESS) {
+            throw new AppException(ErrorCode.IMPORT_BATCH_NOT_IN_PROGRESS);
+        }
+        exercise.setStatus(ExerciseStatus.PENDING);
+        return ExerciseDetailResponse.from(exerciseRepository.save(exercise));
+    }
+
+    /**
+     * Neu lo khong con bai nao PENDING nua -> chuyen COMPLETED. Goi sau moi
+     * lan 1 bai trong lo roi khoi PENDING (xac nhan/xoa), o day va o
+     * {@code ExamService} (khi gan bai PENDING vao de ACTIVE — xem §6.5).
+     * Khong lam gi neu {@code batch} null hoac da khong con IN_PROGRESS.
+     */
+    @Transactional
+    public void recomputeBatchCompletion(ImportBatch batch) {
+        if (batch == null || batch.getStatus() != ImportBatchStatus.IN_PROGRESS) {
+            return;
+        }
+        boolean stillPending = exerciseRepository.existsByImportBatchIdAndStatus(
+                batch.getId(), ExerciseStatus.PENDING);
+        if (!stillPending) {
+            batch.setStatus(ImportBatchStatus.COMPLETED);
+            importBatchRepository.save(batch);
+        }
     }
 
     // ------------------------------------------------------------------

@@ -91,4 +91,9 @@ public class Exam extends BaseEntity {
             joinColumns = @JoinColumn(name = "exam_id"),
             inverseJoinColumns = @JoinColumn(name = "user_id"))
     private Set<User> students = new HashSet<>();
+
+    /** Lo nhap tao ra de thi nay (null = tao tay theo luong cu, khong qua lo). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "import_batch_id")
+    private com.trungtam.exercise.entity.ImportBatch importBatch;
 }

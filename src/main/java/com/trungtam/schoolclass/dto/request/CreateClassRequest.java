@@ -1,6 +1,8 @@
 package com.trungtam.schoolclass.dto.request;
 
 import com.trungtam.schoolclass.entity.ClassStatus;
+import com.trungtam.schoolclass.entity.DeliveryMode;
+import com.trungtam.schoolclass.entity.PaymentType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -17,5 +19,11 @@ public record CreateClassRequest(
         ClassStatus status,
         List<Long> teacherIds,
         /** Don gia moi buoi (VND). Null -> giu 0 (SPEC_ThanhToan §0.2#1). */
-        @PositiveOrZero BigDecimal pricePerSession
+        @PositiveOrZero BigDecimal pricePerSession,
+        /** Gia Xu de HS tu dang ky (Mobile/Web). Null/0 -> khong mo ban qua Xu. */
+        @PositiveOrZero Long coinPrice,
+        /** Hinh thuc thanh toan hoc phi. Null -> giu PREPAID_COIN. */
+        PaymentType paymentType,
+        /** Hinh thuc hoc (quyet dinh cach diem danh). Null -> giu OFFLINE. */
+        DeliveryMode deliveryMode
 ) {}

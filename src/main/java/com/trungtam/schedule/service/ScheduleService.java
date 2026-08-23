@@ -832,6 +832,56 @@ public class ScheduleService {
         checkout(sessionId, token, currentUserId());
     }
 
+    private static final int ONLINE_CHECKIN_EARLY_MINUTES = 15;
+
+    /**
+     * HOC SINH TU diem danh bang nut bam (lop deliveryMode = ONLINE) — khong
+     * can token QR (khac voi {@link #checkin}, danh cho lop OFFLINE hoc truc
+     * tiep). Chi cho phep trong khung gio buoi hoc (tu {@link
+     * #ONLINE_CHECKIN_EARLY_MINUTES} phut truoc gio bat dau den het buoi),
+     * mirror {@code TeacherAttendanceService#requireWithinCheckinWindow}.
+     */
+    @Transactional
+    public void checkinOnlineSelf(Long sessionId) {
+        Long userId = currentUserId();
+        ClassSession s = findSessionOrThrow(sessionId);
+        if (s.getClazz().getDeliveryMode() != com.trungtam.schoolclass.entity.DeliveryMode.ONLINE) {
+            throw new AppException(ErrorCode.CLASS_NOT_ONLINE);
+        }
+        requireInRoster(s, userId);
+        requireWithinOnlineCheckinWindow(s);
+
+        SessionAttendance a = attendanceRepository.findBySessionIdAndUserId(sessionId, userId)
+                .orElseGet(() -> newAttendance(s, userId));
+        Instant now = Instant.now();
+        a.setCheckInAt(now);
+        LocalTime nowLocal = LocalTime.now(zone());
+        boolean late = nowLocal.isAfter(s.getStartTime().plusMinutes(graceMinutes));
+        a.setStatus(late ? AttendanceStatus.TRE : AttendanceStatus.CO_MAT);
+        clearConfirmation(a);
+        attendanceRepository.save(a);
+
+        String studentName = studentName(userId);
+        String when = formatTime(a.getCheckInAt());
+        String stt = late ? "tre" : "dung gio";
+        String shortBody = studentName + " da diem danh luc " + when + " (" + stt + ").";
+        String fullContent = shortBody + "\n\n" + describeSession(s);
+        notifyParentsAttendance(s, userId, NotificationType.CHECKIN_OK,
+                "Da check-in", shortBody, "Con da check-in", fullContent, "CHECKIN_OK");
+    }
+
+    private void requireWithinOnlineCheckinWindow(ClassSession s) {
+        LocalDate today = LocalDate.now(zone());
+        LocalTime now = LocalTime.now(zone());
+        LocalTime windowStart = s.getStartTime().minusMinutes(ONLINE_CHECKIN_EARLY_MINUTES);
+        LocalTime windowEnd = s.endTime();
+        boolean ok = today.equals(s.getSessionDate())
+                && !now.isBefore(windowStart) && !now.isAfter(windowEnd);
+        if (!ok) {
+            throw new AppException(ErrorCode.SELF_CHECKIN_TIME_INVALID);
+        }
+    }
+
     private Long currentUserId() {
         String username = SecurityUtils.requireCurrentUsername();
         return userRepository.findByUsername(username)
@@ -962,7 +1012,8 @@ public class ScheduleService {
                 studentName,
                 attendanceStatus,
                 onLeave,
-                teacherAttendanceStatus);
+                teacherAttendanceStatus,
+                c.getDeliveryMode().name());
     }
 
     private List<TimetableItem> filterByBranch(List<TimetableItem> items, Long branchId) {

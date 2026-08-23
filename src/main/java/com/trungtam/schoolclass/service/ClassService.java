@@ -1,5 +1,7 @@
 package com.trungtam.schoolclass.service;
 
+import com.trungtam.coin.dto.response.CoinBalanceResponse;
+import com.trungtam.coin.service.CoinService;
 import com.trungtam.common.codegen.CodeGeneratorService;
 import com.trungtam.common.exception.AppException;
 import com.trungtam.common.exception.ErrorCode;
@@ -22,6 +24,7 @@ import com.trungtam.schoolclass.dto.response.ClassListItem;
 import com.trungtam.schoolclass.dto.response.ClassPageResponse;
 import com.trungtam.schoolclass.dto.response.StudentOptionResponse;
 import com.trungtam.schoolclass.entity.ClassStatus;
+import com.trungtam.schoolclass.entity.PaymentType;
 import com.trungtam.schoolclass.entity.SchoolClass;
 import com.trungtam.schoolclass.repository.ClassSpec;
 import com.trungtam.schoolclass.repository.SchoolClassRepository;
@@ -53,6 +56,7 @@ public class ClassService {
     private final UserRepository userRepository;
     private final ExamRepository examRepository;
     private final ExamStudentRepository examStudentRepository;
+    private final CoinService coinService;
 
     public ClassPageResponse search(ClassSearchParams params) {
         Specification<SchoolClass> spec = ClassSpec.build(params);
@@ -86,6 +90,13 @@ public class ClassService {
         if (req.pricePerSession() != null) {
             schoolClass.setPricePerSession(req.pricePerSession());
         }
+        schoolClass.setCoinPrice(req.coinPrice());
+        if (req.paymentType() != null) {
+            schoolClass.setPaymentType(req.paymentType());
+        }
+        if (req.deliveryMode() != null) {
+            schoolClass.setDeliveryMode(req.deliveryMode());
+        }
         schoolClass.getTeachers().addAll(resolveTeachers(req.teacherIds()));
         return ClassDetailResponse.from(classRepository.save(schoolClass));
     }
@@ -103,6 +114,13 @@ public class ClassService {
         }
         if (req.pricePerSession() != null) {
             schoolClass.setPricePerSession(req.pricePerSession());
+        }
+        schoolClass.setCoinPrice(req.coinPrice());
+        if (req.paymentType() != null) {
+            schoolClass.setPaymentType(req.paymentType());
+        }
+        if (req.deliveryMode() != null) {
+            schoolClass.setDeliveryMode(req.deliveryMode());
         }
         // Ghi đè giáo viên: xóa + flush NGAY rồi thêm mới
         // (tránh đụng PK class_teachers khi Hibernate insert trước delete)
@@ -243,12 +261,86 @@ public class ClassService {
         return result;
     }
 
+    /**
+     * Danh muc TOAN HE THONG (moi lop, ke ca lop chua ghi danh) — nguon cho
+     * man "Khám phá khóa học" (Mobile) va khoi marketing Trang chu. Moi vai
+     * tro da dang nhap deu xem duoc (khong gate CLASS:READ — xem Controller).
+     */
+    public List<com.trungtam.schoolclass.dto.response.ClassCatalogItem> listCatalog() {
+        Long selfStudentId = currentStudentIdOrNull();
+        return classRepository.findAll().stream()
+                .sorted(java.util.Comparator
+                        .comparing((SchoolClass c) -> c.getSubject().getGradeLevel())
+                        .thenComparing(SchoolClass::getName))
+                .map(c -> com.trungtam.schoolclass.dto.response.ClassCatalogItem.from(
+                        c,
+                        selfStudentId != null
+                                && classRepository.existsByIdAndStudents_Id(c.getId(), selfStudentId)))
+                .toList();
+    }
+
+    /**
+     * HOC SINH TU dang ky tham gia 1 lop bang Xu (Mobile/Web) — tru Xu +
+     * them vao lop NGAY, khong can duyet (yeu cau nguoi dung). Tru Xu qua
+     * {@link CoinService#adjust} (khoa bi quan, tu nem COIN_BALANCE_INSUFFICIENT
+     * neu khong du) TRUOC khi ghi danh — khong bao gio ghi danh ma khong tru
+     * duoc tien, va khong bao gio tru tien ma khong ghi danh duoc (cung 1
+     * transaction Spring, rollback ca 2 neu buoc sau loi).
+     */
+    @Transactional
+    public com.trungtam.schoolclass.dto.response.EnrollResponse enrollSelf(Long classId) {
+        User me = currentUser();
+        if (!hasRole(me, RoleName.STUDENT)) {
+            throw new AppException(ErrorCode.NOT_A_STUDENT);
+        }
+        SchoolClass schoolClass = findOrThrow(classId);
+        Long coinPrice = schoolClass.getCoinPrice();
+        if (schoolClass.getPaymentType() != PaymentType.PREPAID_COIN
+                || coinPrice == null || coinPrice <= 0) {
+            throw new AppException(ErrorCode.CLASS_NOT_PURCHASABLE);
+        }
+        if (schoolClass.getStatus() != ClassStatus.ACTIVE) {
+            throw new AppException(ErrorCode.CLASS_NOT_ACTIVE);
+        }
+        if (schoolClass.getStudents().contains(me)) {
+            throw new AppException(ErrorCode.ALREADY_ENROLLED);
+        }
+
+        CoinBalanceResponse balance = coinService.adjust(
+                me.getId(), -coinPrice, "Đăng ký khóa \"" + schoolClass.getName() + "\"");
+
+        schoolClass.getStudents().add(me);
+        classRepository.save(schoolClass);
+        classRepository.markEnrolledAt(classId, List.of(me.getId()));
+        materializeNewMembersExams(classId, List.of(me.getId()));
+
+        return new com.trungtam.schoolclass.dto.response.EnrollResponse(
+                schoolClass.getId(), schoolClass.getName(), coinPrice, balance.balance());
+    }
+
+    private Long currentStudentIdOrNull() {
+        User me;
+        try {
+            me = currentUser();
+        } catch (AppException e) {
+            return null;
+        }
+        return hasRole(me, RoleName.STUDENT) ? me.getId() : null;
+    }
+
+    private User currentUser() {
+        String username = SecurityUtils.requireCurrentUsername();
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private boolean hasRole(User u, RoleName role) {
+        return u.getRoles().stream().anyMatch(r -> r.getName() == role);
+    }
+
     /** Danh sach lop ma hoc vien DANG DANG NHAP tham gia (self-scoped). */
     public List<ClassListItem> listMyClasses() {
-        String username = SecurityUtils.requireCurrentUsername();
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        return listClassesByStudent(user.getId());
+        return listClassesByStudent(currentUser().getId());
     }
 
     public List<StudentOptionResponse> listStudentsByClassIds(List<Long> classIds) {

@@ -78,4 +78,11 @@ public class TuitionInvoice extends BaseEntity {
 
     @Column(name = "note", length = 500)
     private String note;
+
+    /** So tien +/- Admin dieu chinh luc confirm (vd sai lech thuc te so voi tinh tu dong). */
+    @Column(name = "adjustment_amount", nullable = false, precision = 12, scale = 0)
+    private BigDecimal adjustmentAmount = BigDecimal.ZERO;
+
+    @Column(name = "adjustment_note", length = 500)
+    private String adjustmentNote;
 }
