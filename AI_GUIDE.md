@@ -69,7 +69,7 @@ identity/
 resources/
   application.yml            # cấu hình mặc định = PROD (Postgres + Flyway)
   application-dev.yml        # override = DEV (Postgres Docker, Flyway bật, format_sql true)
-  db/migration/V1__init_auth.sql   # schema + seed role/permission (chạy cả dev lẫn prod)
+  db/migration/V1__init_full_schema.sql   # TOÀN BỘ schema + seed hệ thống (gộp từ 48 migration cũ V1..V49 ngày 13/09/2026 — xem docs/DecaMath/sql/flyway_archive_v1-v49/ để tra lịch sử). Migration MỚI bắt đầu từ V2.
 ```
 
 ## 5. Phân quyền (RBAC)
