@@ -13,7 +13,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Feed bai viet cho mobile — chi bai da PUBLISHED.
+ * Feed bai viet cho Mobile + Trang chu cong khai Web — chi bai da PUBLISHED.
+ * {@code permitAll()} — khach chua dang nhap cung xem duoc
+ * (KEHOACH_WEB_TrangChuCongKhai_HeroContent.md); PostService da loc PUBLISHED
+ * nen khong lo bai DRAFT/ARCHIVED.
  */
 @RestController
 @RequestMapping("/api/v1/posts")
@@ -23,7 +26,7 @@ public class PostController {
     private final PostService postService;
 
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("permitAll()")
     public PostPageResponse feed(
             @RequestParam(defaultValue = "1") int current,
             @RequestParam(defaultValue = "5") int pageSize) {
@@ -31,7 +34,7 @@ public class PostController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("permitAll()")
     public ApiResponse<PostDetail> detail(@PathVariable Long id) {
         return ApiResponse.ok(postService.publicDetail(id));
     }

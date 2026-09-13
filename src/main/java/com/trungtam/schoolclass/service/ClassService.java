@@ -263,12 +263,17 @@ public class ClassService {
 
     /**
      * Danh muc TOAN HE THONG (moi lop, ke ca lop chua ghi danh) — nguon cho
-     * man "Khám phá khóa học" (Mobile) va khoi marketing Trang chu. Moi vai
-     * tro da dang nhap deu xem duoc (khong gate CLASS:READ — xem Controller).
+     * man "Khám phá khóa học" (Mobile + Web) va khoi marketing Trang chu. Moi
+     * vai tro da dang nhap deu xem duoc toan bo danh sach (khong gate
+     * CLASS:READ — xem Controller), khong doi hanh vi cu. Khach CHUA dang
+     * nhap (Web cong khai) chi thay lop dang ACTIVE — an lop nhap/tam dong
+     * (KEHOACH_WEB_TrangChuCongKhai_HeroContent.md muc 4.7).
      */
     public List<com.trungtam.schoolclass.dto.response.ClassCatalogItem> listCatalog() {
+        boolean anonymous = SecurityUtils.getCurrentUsername().isEmpty();
         Long selfStudentId = currentStudentIdOrNull();
         return classRepository.findAll().stream()
+                .filter(c -> !anonymous || c.getStatus() == ClassStatus.ACTIVE)
                 .sorted(java.util.Comparator
                         .comparing((SchoolClass c) -> c.getSubject().getGradeLevel())
                         .thenComparing(SchoolClass::getName))

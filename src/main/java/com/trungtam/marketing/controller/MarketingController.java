@@ -10,9 +10,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Khoi marketing Trang chu mobile (banner khuyen mai, danh muc theo khoi
- * lop, trust bar, testimonial). Chi doc — moi vai tro da dang nhap deu
- * xem duoc (khong can permission rieng, giong pattern PostController.feed()).
+ * Khoi marketing Trang chu (banner khuyen mai, danh muc theo khoi lop, trust
+ * bar, testimonial, hero) — dung chung cho Mobile va Trang chu cong khai
+ * Web. Chi doc — {@code permitAll()} de khach chua dang nhap cung xem duoc
+ * (KEHOACH_WEB_TrangChuCongKhai_HeroContent.md), khong can permission rieng.
  */
 @RestController
 @RequestMapping("/api/v1/home/marketing")
@@ -22,7 +23,7 @@ public class MarketingController {
     private final MarketingService marketingService;
 
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("permitAll()")
     public ApiResponse<HomeMarketingResponse> getHomeMarketing() {
         return ApiResponse.ok(marketingService.getHomeMarketing());
     }

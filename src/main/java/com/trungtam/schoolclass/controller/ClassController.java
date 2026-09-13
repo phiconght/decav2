@@ -48,13 +48,17 @@ public class ClassController {
 
     /**
      * Danh muc TOAN HE THONG (moi lop, ke ca lop chua ghi danh) — nguon cho
-     * man "Khám phá khóa học" (Mobile) va khoi marketing Trang chu.
-     * {@code isAuthenticated()} — KHONG gate CLASS:READ (quyen do chi cap
-     * ADMIN/TEACHER/EMPLOYEE, doi tuong man nay la moi vai tro ke ca STUDENT/
-     * PARENT). CHI XEM — khong dung de mo chi tiet buoi hoc/de thi.
+     * man "Khám phá khóa học" (Mobile + Web) va khoi marketing Trang chu.
+     * {@code permitAll()} — mo cong khai cho khach chua dang nhap xem Trang
+     * chu Web (KEHOACH_WEB_TrangChuCongKhai_HeroContent.md); nguoi da dang
+     * nhap (Mobile/Web) van thay day du nhu truoc, khong doi hanh vi. KHONG
+     * gate CLASS:READ (quyen do chi cap ADMIN/TEACHER/EMPLOYEE, doi tuong
+     * man nay la moi vai tro ke ca STUDENT/PARENT/khach). CHI XEM — khong
+     * dung de mo chi tiet buoi hoc/de thi. Khach (chua dang nhap) chi thay
+     * lop dang ACTIVE — xem {@link ClassService#listCatalog()}.
      */
     @GetMapping("/catalog")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("permitAll()")
     public ApiResponse<List<com.trungtam.schoolclass.dto.response.ClassCatalogItem>> catalog() {
         return ApiResponse.ok(classService.listCatalog());
     }

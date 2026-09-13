@@ -38,6 +38,19 @@ public class SecurityConfig {
             "/actuator/health"
     };
 
+    /**
+     * Chi GET — mo cong khai cho Trang chu cong khai Web (khach chua dang
+     * nhap). Method @PreAuthorize("permitAll()") tren tung controller van
+     * phai duoc go rieng (method security chay doc lap voi filter chain nay)
+     * — xem KEHOACH_WEB_TrangChuCongKhai_HeroContent.md muc 4.4/4.5.
+     */
+    private static final String[] PUBLIC_GET_PATHS = {
+            "/api/v1/home/marketing",
+            "/api/v1/classes/catalog",
+            "/api/v1/posts",
+            "/api/v1/posts/*"
+    };
+
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RestAuthEntryPoint restAuthEntryPoint;
     private final CustomUserDetailsService userDetailsService;
@@ -51,6 +64,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_PATHS).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/files/*/content").permitAll()
+                        .requestMatchers(HttpMethod.GET, PUBLIC_GET_PATHS).permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint(restAuthEntryPoint)
