@@ -8,13 +8,11 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * 1 dong trong danh muc TOAN HE THONG (moi lop, ke ca lop chua ghi danh) —
- * nguon DUY NHAT cho man "Khám phá khóa học" (Mobile) va khoi marketing
- * Trang chu (nhom theo khoi lop). CHI DOC, khong lo dung de mo chi tiet
- * buoi hoc/de thi (yeu cau nguoi dung 11/08/2026) — RIENG trang chi tiet
- * khoa hoc (marketing, xem {@link ClassPublicDetailResponse}) thi duoc mo.
+ * Trang chi tiet khoa hoc CONG KHAI (Card -> bam vao mo trang nay) — nguon
+ * cho ca khach chua dang nhap, giong quy tac cua {@link ClassCatalogItem}.
+ * Chi tra khoa ACTIVE (xem ClassService#getPublicDetail).
  */
-public record ClassCatalogItem(
+public record ClassPublicDetailResponse(
         Long id,
         String code,
         String name,
@@ -28,12 +26,16 @@ public record ClassCatalogItem(
         BigDecimal fullPrice,
         String paymentType,
         String deliveryMode,
-        boolean enrolled,
         List<String> teacherNames,
-        String coverImageUrl
+        /** Tieu de hien thi — null = FE tu dung {@code name} o tren. */
+        String title,
+        String coverImageUrl,
+        String contentMd,
+        /** Nguoi dang xem (neu la HS) da o trong lop chua — an nut Dang ky khi da co roi. */
+        boolean enrolled
 ) {
-    public static ClassCatalogItem from(SchoolClass c, boolean enrolled, ClassMarketingContent content) {
-        return new ClassCatalogItem(
+    public static ClassPublicDetailResponse from(SchoolClass c, ClassMarketingContent content, boolean enrolled) {
+        return new ClassPublicDetailResponse(
                 c.getId(),
                 c.getCode(),
                 c.getName(),
@@ -47,12 +49,14 @@ public record ClassCatalogItem(
                 c.getFullPrice(),
                 c.getPaymentType().name(),
                 c.getDeliveryMode().name(),
-                enrolled,
                 c.getTeachers().stream()
                         .map(t -> t.getFullName() != null ? t.getFullName() : t.getUsername())
                         .sorted()
                         .toList(),
-                content != null ? content.getCoverImageUrl() : null
+                content != null ? content.getTitle() : null,
+                content != null ? content.getCoverImageUrl() : null,
+                content != null ? content.getContentMd() : null,
+                enrolled
         );
     }
 }

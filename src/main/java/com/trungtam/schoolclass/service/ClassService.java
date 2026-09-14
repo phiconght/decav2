@@ -57,6 +57,7 @@ public class ClassService {
     private final ExamRepository examRepository;
     private final ExamStudentRepository examStudentRepository;
     private final CoinService coinService;
+    private final com.trungtam.schoolclass.repository.ClassMarketingContentRepository marketingContentRepository;
 
     public ClassPageResponse search(ClassSearchParams params) {
         Specification<SchoolClass> spec = ClassSpec.build(params);
@@ -91,6 +92,7 @@ public class ClassService {
             schoolClass.setPricePerSession(req.pricePerSession());
         }
         schoolClass.setCoinPrice(req.coinPrice());
+        schoolClass.setFullPrice(req.fullPrice());
         if (req.paymentType() != null) {
             schoolClass.setPaymentType(req.paymentType());
         }
@@ -116,6 +118,7 @@ public class ClassService {
             schoolClass.setPricePerSession(req.pricePerSession());
         }
         schoolClass.setCoinPrice(req.coinPrice());
+        schoolClass.setFullPrice(req.fullPrice());
         if (req.paymentType() != null) {
             schoolClass.setPaymentType(req.paymentType());
         }
@@ -272,7 +275,14 @@ public class ClassService {
     public List<com.trungtam.schoolclass.dto.response.ClassCatalogItem> listCatalog() {
         boolean anonymous = SecurityUtils.getCurrentUsername().isEmpty();
         Long selfStudentId = currentStudentIdOrNull();
-        return classRepository.findAll().stream()
+        List<SchoolClass> classes = classRepository.findAll();
+        java.util.Map<Long, com.trungtam.schoolclass.entity.ClassMarketingContent> contentByClassId =
+                marketingContentRepository.findByClassIdIn(classes.stream().map(SchoolClass::getId).toList())
+                        .stream()
+                        .collect(java.util.stream.Collectors.toMap(
+                                com.trungtam.schoolclass.entity.ClassMarketingContent::getClassId,
+                                java.util.function.Function.identity()));
+        return classes.stream()
                 .filter(c -> !anonymous || c.getStatus() == ClassStatus.ACTIVE)
                 .sorted(java.util.Comparator
                         .comparing((SchoolClass c) -> c.getSubject().getGradeLevel())
@@ -280,8 +290,27 @@ public class ClassService {
                 .map(c -> com.trungtam.schoolclass.dto.response.ClassCatalogItem.from(
                         c,
                         selfStudentId != null
-                                && classRepository.existsByIdAndStudents_Id(c.getId(), selfStudentId)))
+                                && classRepository.existsByIdAndStudents_Id(c.getId(), selfStudentId),
+                        contentByClassId.get(c.getId())))
                 .toList();
+    }
+
+    /**
+     * Trang chi tiet khoa hoc CONG KHAI (bam vao Card o Catalog/Trang chu mo
+     * ra) — khach chua dang nhap xem duoc, giong quy tac cua {@link #listCatalog()}.
+     * Chi tra khoa dang ACTIVE — khoa nhap/tam dong khong lo ra ngoai.
+     */
+    public com.trungtam.schoolclass.dto.response.ClassPublicDetailResponse getPublicDetail(Long id) {
+        SchoolClass c = findOrThrow(id);
+        if (c.getStatus() != ClassStatus.ACTIVE) {
+            throw new AppException(ErrorCode.CLASS_NOT_FOUND);
+        }
+        com.trungtam.schoolclass.entity.ClassMarketingContent content =
+                marketingContentRepository.findById(id).orElse(null);
+        Long selfStudentId = currentStudentIdOrNull();
+        boolean enrolled = selfStudentId != null
+                && classRepository.existsByIdAndStudents_Id(id, selfStudentId);
+        return com.trungtam.schoolclass.dto.response.ClassPublicDetailResponse.from(c, content, enrolled);
     }
 
     /**

@@ -68,6 +68,15 @@ public class SchoolClass extends BaseEntity {
     @Column(name = "coin_price")
     private Long coinPrice;
 
+    /**
+     * Gia tron goi cho HOC SINH TU dang ky (khong qua Xu) — HV/khach quet QR
+     * chuyen khoan, Admin doi chieu thu cong roi ghi danh (khac coinPrice: day
+     * la VND that qua chuyen khoan, khong phai Xu noi bo). Null = khoa nay
+     * chua mo dang ky kieu nay (an nut Dang ky + QR o Card/trang chi tiet).
+     */
+    @Column(name = "full_price", precision = 12, scale = 0)
+    private BigDecimal fullPrice;
+
     /** Hinh thuc thanh toan hoc phi cua LOP (ADMIN chon) — xem {@link PaymentType}. */
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_type", nullable = false, length = 20)

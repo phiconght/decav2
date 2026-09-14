@@ -47,6 +47,8 @@ public class SecurityConfig {
     private static final String[] PUBLIC_GET_PATHS = {
             "/api/v1/home/marketing",
             "/api/v1/classes/catalog",
+            "/api/v1/classes/*/public",
+            "/api/v1/app-settings",
             "/api/v1/posts",
             "/api/v1/posts/*"
     };

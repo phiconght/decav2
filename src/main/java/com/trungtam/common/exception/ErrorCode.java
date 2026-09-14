@@ -68,6 +68,11 @@ public enum ErrorCode {
     CLASS_PAYMENT_TYPE_INVALID(HttpStatus.BAD_REQUEST, "Lop nay khong dung hinh thuc thanh toan sau (chuyen khoan)"),
     CLASS_NOT_ONLINE(HttpStatus.BAD_REQUEST, "Lop nay khong dung hinh thuc diem danh truc tuyen"),
     SELF_CHECKIN_TIME_INVALID(HttpStatus.BAD_REQUEST, "Ngoai khung gio diem danh cua buoi hoc"),
+    CLASS_NOT_REGISTRABLE(HttpStatus.BAD_REQUEST, "Khoa hoc nay chua mo dang ky (chua co gia tron goi)"),
+
+    // 404/409 — Yeu cau dang ky khoa hoc (enrollment request)
+    ENROLLMENT_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay yeu cau dang ky"),
+    ENROLLMENT_REQUEST_ALREADY_PROCESSED(HttpStatus.BAD_REQUEST, "Yeu cau dang ky nay da duoc xu ly"),
 
     // 404 — Exam
     EXAM_NOT_FOUND(HttpStatus.NOT_FOUND, "Khong tim thay de thi"),

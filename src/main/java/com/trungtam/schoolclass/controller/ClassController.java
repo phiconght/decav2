@@ -4,14 +4,20 @@ import com.trungtam.common.dto.ApiResponse;
 import com.trungtam.schoolclass.dto.request.AddStudentsRequest;
 import com.trungtam.schoolclass.dto.request.ClassSearchParams;
 import com.trungtam.schoolclass.dto.request.CreateClassRequest;
+import com.trungtam.schoolclass.dto.request.UpdateClassContentRequest;
 import com.trungtam.schoolclass.dto.request.UpdateClassStatusRequest;
+import com.trungtam.schoolclass.dto.response.ClassContentResponse;
 import com.trungtam.schoolclass.dto.response.ClassDetailResponse;
 import com.trungtam.schoolclass.dto.response.ClassOutlineResponse;
 import com.trungtam.schoolclass.dto.response.ClassListItem;
 import com.trungtam.schoolclass.dto.response.ClassPageResponse;
+import com.trungtam.schoolclass.dto.response.ClassPublicDetailResponse;
 import com.trungtam.schoolclass.dto.response.ClassRefItem;
+import com.trungtam.schoolclass.dto.response.RegistrationResponse;
 import com.trungtam.schoolclass.dto.response.StudentOptionResponse;
+import com.trungtam.schoolclass.service.ClassContentService;
 import com.trungtam.schoolclass.service.ClassOutlineService;
+import com.trungtam.schoolclass.service.ClassRegistrationService;
 import com.trungtam.schoolclass.service.ClassService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +45,8 @@ public class ClassController {
 
     private final ClassService classService;
     private final ClassOutlineService classOutlineService;
+    private final ClassContentService classContentService;
+    private final ClassRegistrationService classRegistrationService;
 
     @GetMapping
     @PreAuthorize("hasAuthority('CLASS:READ')")
@@ -201,5 +209,45 @@ public class ClassController {
     public ApiResponse<List<StudentOptionResponse>> teacherOptions(
             @RequestParam(required = false) String keyword) {
         return ApiResponse.ok(classService.teacherOptions(keyword));
+    }
+
+    // ---- Noi dung hien thi (nut "Nội dung" trong man Sua khoa — Admin) ----
+
+    @GetMapping("/{id}/content")
+    @PreAuthorize("hasAuthority('CLASS:WRITE')")
+    public ApiResponse<ClassContentResponse> getContent(@PathVariable Long id) {
+        return ApiResponse.ok(classContentService.get(id));
+    }
+
+    @PutMapping("/{id}/content")
+    @PreAuthorize("hasAuthority('CLASS:WRITE')")
+    public ApiResponse<ClassContentResponse> updateContent(
+            @PathVariable Long id, @Valid @RequestBody UpdateClassContentRequest request) {
+        return ApiResponse.ok(classContentService.update(id, request));
+    }
+
+    /**
+     * Trang chi tiet khoa hoc CONG KHAI — bam vao Card o Catalog/Trang chu mo
+     * ra. {@code permitAll()} giong {@code /catalog} — khach chua dang nhap
+     * van xem duoc.
+     */
+    @GetMapping("/{id}/public")
+    @PreAuthorize("permitAll()")
+    public ApiResponse<ClassPublicDetailResponse> publicDetail(@PathVariable Long id) {
+        return ApiResponse.ok(classService.getPublicDetail(id));
+    }
+
+    // ---- Dang ky bang chuyen khoan (khac /enroll bang Xu o tren) ----
+
+    @PostMapping("/{id}/register")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<RegistrationResponse> register(@PathVariable Long id) {
+        return ApiResponse.ok(classRegistrationService.register(id));
+    }
+
+    @GetMapping("/{id}/register/my")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<RegistrationResponse> myRegistration(@PathVariable Long id) {
+        return ApiResponse.ok(classRegistrationService.myPendingRegistration(id).orElse(null));
     }
 }
