@@ -160,14 +160,14 @@ public class ClassService {
 
     public List<StudentOptionResponse> listEligibleStudents(Long classId, String keyword) {
         findOrThrow(classId);
-        return userRepository.findByRoleAndKeyword(RoleName.STUDENT, keyword).stream()
+        return userRepository.findByRoleAndKeyword(RoleName.STUDENT, keyword == null ? "" : keyword).stream()
                 .map(StudentOptionResponse::from)
                 .toList();
     }
 
     /** Dropdown giao vien (gate CLASS:READ — phuc vu xep lich, khong can USER:READ). */
     public List<StudentOptionResponse> teacherOptions(String keyword) {
-        return userRepository.findByRoleAndKeyword(RoleName.TEACHER, keyword).stream()
+        return userRepository.findByRoleAndKeyword(RoleName.TEACHER, keyword == null ? "" : keyword).stream()
                 .map(StudentOptionResponse::from)
                 .toList();
     }

@@ -81,7 +81,11 @@ public class ExamPdfService {
     /** Be rong noi dung trang A4 sau khi tru le 56pt moi ben. */
     private static final float CONTENT_WIDTH = PageSize.A4.getWidth() - 112f;
     private static final float MAX_IMAGE_HEIGHT = 300f;
+    /** Khung co dinh cho anh cau hoi/dap an tu luan — khong keo full be rong trang. */
+    private static final float MAX_IMAGE_WIDTH = 320f;
     private static final float MAX_OPTION_IMAGE_HEIGHT = 120f;
+    /** Khung co dinh cho anh phuong an/y Dung-Sai — nho hon anh cau hoi chinh. */
+    private static final float MAX_OPTION_IMAGE_WIDTH = 160f;
     private static final int IMAGE_MAX_BYTES = 5 * 1024 * 1024;
     private static final Duration IMAGE_TIMEOUT = Duration.ofSeconds(5);
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -309,9 +313,7 @@ public class ExamPdfService {
         if (ex.getQuestionText() != null && !ex.getQuestionText().isBlank()) {
             latexPdfRenderer.renderMixed(writer, ex.getQuestionText(), regular(11)).forEach(q::add);
         }
-        doc.add(q);
-
-        addImage(doc, ex.getQuestionImage(), MAX_IMAGE_HEIGHT);
+        addTextWithImage(doc, q, ex.getQuestionImage(), MAX_IMAGE_WIDTH, MAX_IMAGE_HEIGHT);
 
         switch (ex.getType()) {
             case MULTIPLE_CHOICE -> addMultipleChoice(doc, writer, ex, reveal);
@@ -339,8 +341,7 @@ public class ExamPdfService {
             if (markCorrect) {
                 p.add(new Chunk(glyphOrFallback(" ✓", " (Đúng)"), f));
             }
-            doc.add(p);
-            addImage(doc, o.getImage(), MAX_OPTION_IMAGE_HEIGHT);
+            addTextWithImage(doc, p, o.getImage(), MAX_OPTION_IMAGE_WIDTH, MAX_OPTION_IMAGE_HEIGHT);
             letter++;
         }
         if (options.isEmpty()) {
@@ -359,7 +360,7 @@ public class ExamPdfService {
         }
         // Anh cua tung y (neu co) in truoc bang de bang gon gang
         for (TrueFalseItem it : items) {
-            addImage(doc, it.getImage(), MAX_OPTION_IMAGE_HEIGHT);
+            addImage(doc, it.getImage(), MAX_OPTION_IMAGE_WIDTH, MAX_OPTION_IMAGE_HEIGHT);
         }
 
         boolean withPoints = reveal && !ee.getItemScores().isEmpty();
@@ -423,11 +424,11 @@ public class ExamPdfService {
             p.setSpacingBefore(4);
             p.add(new Chunk("Đáp án gợi ý: ", bold(11)));
             latexPdfRenderer.renderMixed(writer, ex.getEssayAnswer(), regular(11)).forEach(p::add);
-            doc.add(p);
+            addTextWithImage(doc, p, ex.getEssayAnswerImage(), MAX_IMAGE_WIDTH, MAX_IMAGE_HEIGHT);
         } else {
-            doc.add(indented(new Paragraph("Đáp án gợi ý: (chấm tay)", oblique(10))));
+            addTextWithImage(doc, indented(new Paragraph("Đáp án gợi ý: (chấm tay)", oblique(10))),
+                    ex.getEssayAnswerImage(), MAX_IMAGE_WIDTH, MAX_IMAGE_HEIGHT);
         }
-        addImage(doc, ex.getEssayAnswerImage(), MAX_IMAGE_HEIGHT);
     }
 
     // ---- bang dap an tong hop (DAP_AN) ----
@@ -505,26 +506,75 @@ public class ExamPdfService {
 
     // ---- anh (§3.8 spec): loi/timeout -> placeholder, KHONG fail PDF ----
 
-    private void addImage(Document doc, String url, float maxHeight) throws DocumentException {
+    /**
+     * Them 1 doan van ban + anh minh hoa (neu co) thanh 1 khoi KHONG the bi
+     * ngat trang giua chung — tranh loi anh cua cau nay troi sang, nam duoi
+     * phan noi dung cua cau ke tiep khi PDF sang trang.
+     */
+    private void addTextWithImage(Document doc, Paragraph text, String imageUrl, float maxWidth, float maxHeight)
+            throws DocumentException {
+        if (imageUrl == null || imageUrl.isBlank()) {
+            doc.add(text);
+            return;
+        }
+        Element imageOrPlaceholder = loadImageElement(imageUrl, maxWidth, maxHeight);
+
+        PdfPTable block = new PdfPTable(1);
+        block.setWidthPercentage(100);
+        block.setKeepTogether(true);
+        block.setSpacingBefore(0);
+
+        PdfPCell textCell = new PdfPCell();
+        textCell.setBorder(PdfPCell.NO_BORDER);
+        textCell.setPadding(0);
+        textCell.addElement(text);
+        block.addCell(textCell);
+
+        PdfPCell imgCell = new PdfPCell();
+        imgCell.setBorder(PdfPCell.NO_BORDER);
+        imgCell.setPadding(0);
+        imgCell.setPaddingTop(4);
+        imgCell.setPaddingBottom(4);
+        imgCell.addElement(imageOrPlaceholder);
+        block.addCell(imgCell);
+
+        doc.add(block);
+    }
+
+    /** Anh dung mot minh (khong di kem doan van ban nao truoc no), vd anh tung y Dung/Sai. */
+    private void addImage(Document doc, String url, float maxWidth, float maxHeight) throws DocumentException {
         if (url == null || url.isBlank()) {
             return;
         }
+        doc.add(loadImageElement(url, maxWidth, maxHeight));
+    }
+
+    /**
+     * Tai anh va gioi han trong 1 khung co dinh (maxWidth x maxHeight),
+     * KHONG bao gio phong to vuot kich thuoc that cua anh (chi thu nho neu
+     * can) de tranh vo net/mo do bi keo can — chi giu ti le goc, khong bao
+     * gio keo lech trai-phai.
+     */
+    private Element loadImageElement(String url, float maxWidth, float maxHeight) {
         byte[] bytes = resolveImage(url);
         if (bytes == null) {
-            doc.add(indented(new Paragraph("[Không tải được hình ảnh]",
-                    new Font(bfOblique, 9, Font.NORMAL, Color.GRAY))));
-            return;
+            return imagePlaceholder();
         }
         try {
             Image img = Image.getInstance(bytes);
-            img.scaleToFit(CONTENT_WIDTH, maxHeight);
-            img.setSpacingBefore(4);
-            img.setSpacingAfter(4);
-            doc.add(img);
+            float scale = Math.min(maxWidth / img.getWidth(), maxHeight / img.getHeight());
+            scale = Math.min(scale, 1f);
+            img.scaleAbsolute(img.getWidth() * scale, img.getHeight() * scale);
+            img.setAlignment(Element.ALIGN_CENTER);
+            return img;
         } catch (Exception e) {
-            doc.add(indented(new Paragraph("[Không tải được hình ảnh]",
-                    new Font(bfOblique, 9, Font.NORMAL, Color.GRAY))));
+            return imagePlaceholder();
         }
+    }
+
+    private Paragraph imagePlaceholder() {
+        return indented(new Paragraph("[Không tải được hình ảnh]",
+                new Font(bfOblique, 9, Font.NORMAL, Color.GRAY)));
     }
 
     private byte[] resolveImage(String url) {

@@ -42,7 +42,7 @@ public class StudentParentService {
 
     /** Picker phu huynh theo tu khoa. */
     public List<RelativeItem> parentOptions(String keyword) {
-        return userRepository.findByRoleAndKeyword(RoleName.PARENT, keyword).stream()
+        return userRepository.findByRoleAndKeyword(RoleName.PARENT, keyword == null ? "" : keyword).stream()
                 .map(u -> RelativeItem.of(u, null))
                 .toList();
     }

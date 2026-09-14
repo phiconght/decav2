@@ -43,7 +43,7 @@ app:
   jwt:
     secret: ${APP_JWT_SECRET:ZGV2LXNlY3JldC1jaGFuZ2UtbWUtdG8tYS1sb25nLXJhbmRvbS1iYXNlNjQtdmFsdWUtMTIzNDU2Nzg=}
     issuer: center-api
-    access-token-ttl-minutes: ${APP_JWT_ACCESS_TTL:15}
+    access-token-ttl-minutes: ${APP_JWT_ACCESS_TTL:1440}
     refresh-token-ttl-days: ${APP_JWT_REFRESH_TTL:7}
   bootstrap:
     admin-username: ${APP_ADMIN_USERNAME:admin}

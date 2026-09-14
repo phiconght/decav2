@@ -24,8 +24,7 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     @Query("""
         SELECT u FROM User u JOIN u.roles r
         WHERE r.name = :roleName
-          AND (:keyword IS NULL
-               OR LOWER(u.username) LIKE LOWER(CONCAT('%', :keyword, '%'))
+          AND (LOWER(u.username) LIKE LOWER(CONCAT('%', :keyword, '%'))
                OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')))
         ORDER BY u.fullName ASC
         """)
