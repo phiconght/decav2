@@ -68,10 +68,10 @@ app:
       # Tao session_attendance cho buoi trong ngay tu roster + ap nghi phep
       enabled: ${APP_ATTENDANCE_ACT_ENABLED:true}
       cron: "0 5 0 * * *"        # 00:05 hang ngay
-    close-session:
-      # Buoi PLANNED da qua gio ket thuc -> DONE
-      enabled: ${APP_CLOSE_SESSION_ENABLED:true}
-      cron: "0 30 23 * * *"      # 23:30 hang ngay
+    session-state:
+      # Quet moi phut: PLANNED -> IN_PROGRESS (den gio bat dau) -> DONE (qua gio ket thuc)
+      enabled: ${APP_SESSION_STATE_ENABLED:true}
+      fixed-delay: ${APP_SESSION_STATE_FIXED_DELAY:60000}  # ms, mac dinh 60s
     missing-scan:
       # Quet thieu check-in/check-out buoi PLANNED hom nay -> bao phu huynh
       enabled: ${APP_MISSING_SCAN_ENABLED:true}

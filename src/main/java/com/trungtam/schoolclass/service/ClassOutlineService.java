@@ -273,6 +273,10 @@ public class ClassOutlineService {
                 fmt(s.endTime()),
                 s.getRoom() != null ? s.getRoom().getName() : null,
                 s.getTeacher() != null ? s.getTeacher().getFullName() : null,
+                // status (PLANNED/IN_PROGRESS/DONE/CANCELLED) doc thang tu DB —
+                // SessionStateJob quet moi phut va tu chuyen trang thai theo
+                // gio bat dau/ket thuc thuc te, API o day KHONG tinh toan gi
+                // them (SPEC bug 14/09/2026).
                 s.getStatus() != null ? s.getStatus().name() : null,
                 s.getCancelReason(),
                 st != null ? st.name() : null,

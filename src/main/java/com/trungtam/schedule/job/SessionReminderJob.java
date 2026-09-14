@@ -77,8 +77,8 @@ public class SessionReminderJob {
     private int notifyRoster(ClassSession s) {
         Long sessionId = s.getId();
         Long classId = s.getClazz().getId();
-        String title = "Sap den gio hoc";
-        String body = "Buoi hoc sap bat dau luc " + s.getStartTime() + ".";
+        String title = "Sắp đến giờ học";
+        String body = "Buổi học sắp bắt đầu lúc " + s.getStartTime() + ".";
         String content = body + "\n\n" + describeSession(s);
         String payload = "{\"sessionId\":" + sessionId + "}";
         int n = 0;
@@ -116,14 +116,14 @@ public class SessionReminderJob {
     /** Mo ta buoi hoc (lop, ngay, gio, phong) cho noi dung tin nhan day du. */
     private String describeSession(ClassSession s) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Lop: ").append(s.getClazz().getName());
-        sb.append("\nNgay: ").append(s.getSessionDate());
-        sb.append("\nGio: ").append(s.getStartTime());
+        sb.append("Lớp: ").append(s.getClazz().getName());
+        sb.append("\nNgày: ").append(s.getSessionDate());
+        sb.append("\nGiờ: ").append(s.getStartTime());
         if (s.endTime() != null) {
             sb.append(" - ").append(s.endTime());
         }
         if (s.getRoom() != null) {
-            sb.append("\nPhong: ").append(s.getRoom().getName());
+            sb.append("\nPhòng: ").append(s.getRoom().getName());
         }
         return sb.toString();
     }

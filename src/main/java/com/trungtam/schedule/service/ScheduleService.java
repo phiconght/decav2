@@ -62,10 +62,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -430,6 +432,15 @@ public class ScheduleService {
         // dau khi that su doi thong tin LICH; sua moi ten buoi thi khong.
         if (changed) {
             s.setManual(true);
+            // Doi gio -> trang thai cu co the khong con dung (vd buoi dang
+            // IN_PROGRESS bi doi sang toi nay thi chua bat dau nua). Tra ve
+            // PLANNED de SessionStateJob tinh lai trong <= 1 phut. Chi ha cap
+            // khi gio moi CHUA toi, de khong dung vao buoi da hoc xong.
+            if (s.getStatus() != SessionStatus.CANCELLED
+                    && LocalDateTime.of(s.getSessionDate(), s.getStartTime())
+                            .isAfter(LocalDateTime.now(zone()))) {
+                s.setStatus(SessionStatus.PLANNED);
+            }
         }
         sessionRepository.save(s);
         if (changed) {
@@ -437,8 +448,8 @@ public class ScheduleService {
             String variant = s.getStartTime() + "_" + s.getDurationMinutes() + "_"
                     + (s.getRoom() != null ? s.getRoom().getId() : "-") + "_"
                     + (s.getTeacher() != null ? s.getTeacher().getId() : "-");
-            notifyScheduleChanged(s, variant, "Buoi hoc thay doi",
-                    "Thong tin buoi hoc (gio/phong/giao vien) da duoc cap nhat.");
+            notifyScheduleChanged(s, variant, "Buổi học thay đổi",
+                    "Thông tin buổi học (giờ/phòng/giáo viên) đã được cập nhật.");
         }
         return SessionDetail.from(s);
     }
@@ -449,8 +460,8 @@ public class ScheduleService {
         s.setStatus(SessionStatus.CANCELLED);
         s.setCancelReason(reason);
         sessionRepository.save(s);
-        notifyScheduleChanged(s, "CANCEL", "Buoi hoc bi huy",
-                "Buoi hoc da bi huy" + (reason != null && !reason.isBlank() ? ": " + reason : "") + ".");
+        notifyScheduleChanged(s, "CANCEL", "Buổi học bị hủy",
+                "Buổi học đã bị hủy" + (reason != null && !reason.isBlank() ? ": " + reason : "") + ".");
         return SessionDetail.from(s);
     }
 
@@ -617,11 +628,17 @@ public class ScheduleService {
 
     // ============================ DIEM DANH (§3.6.4) ============================
 
-    /** Job dau ngay: tao attendance cho roster cua moi buoi PLANNED trong ngay, ap CO_PHEP theo leave. */
+    /**
+     * Job dau ngay: tao attendance cho roster cua moi buoi CHUA ket thuc trong
+     * ngay, ap CO_PHEP theo leave. Lay ca IN_PROGRESS vi job chay luc 00:05 ma
+     * SessionStateJob quet moi phut — buoi bat dau truoc 00:05 da kip chuyen
+     * sang IN_PROGRESS, neu chi loc PLANNED thi buoi do khong co dong diem danh.
+     */
     @Transactional
     public int activateAttendance(LocalDate date) {
         int created = 0;
-        for (ClassSession s : sessionRepository.findBySessionDateAndStatus(date, SessionStatus.PLANNED)) {
+        for (ClassSession s : sessionRepository.findBySessionDateAndStatusIn(
+                date, EnumSet.of(SessionStatus.PLANNED, SessionStatus.IN_PROGRESS))) {
             List<Long> roster = rosterRepository.findStudentIdsByClassId(s.getClazz().getId());
             for (Long userId : roster) {
                 if (attendanceRepository.existsBySessionIdAndUserId(s.getId(), userId)) {
@@ -663,11 +680,11 @@ public class ScheduleService {
 
         String studentName = studentName(currentUserId);
         String when = formatTime(a.getCheckInAt());
-        String stt = late ? "tre" : "dung gio";
-        String shortBody = studentName + " da check-in luc " + when + " (" + stt + ").";
+        String stt = late ? "trễ" : "đúng giờ";
+        String shortBody = studentName + " đã check-in lúc " + when + " (" + stt + ").";
         String fullContent = shortBody + "\n\n" + describeSession(s);
         notifyParentsAttendance(s, currentUserId, NotificationType.CHECKIN_OK,
-                "Da check-in", shortBody, "Con da check-in", fullContent, "CHECKIN_OK");
+                "Đã check-in", shortBody, "Con đã check-in", fullContent, "CHECKIN_OK");
     }
 
     @Transactional
@@ -690,10 +707,10 @@ public class ScheduleService {
 
         String studentName = studentName(currentUserId);
         String when = formatTime(a.getCheckOutAt());
-        String shortBody = studentName + " da check-out luc " + when + ".";
+        String shortBody = studentName + " đã check-out lúc " + when + ".";
         String fullContent = shortBody + "\n\n" + describeSession(s);
         notifyParentsAttendance(s, currentUserId, NotificationType.CHECKOUT_OK,
-                "Da check-out", shortBody, "Con da check-out", fullContent, "CHECKOUT_OK");
+                "Đã check-out", shortBody, "Con đã check-out", fullContent, "CHECKOUT_OK");
     }
 
     /**
@@ -714,7 +731,7 @@ public class ScheduleService {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
     private String studentName(Long userId) {
-        return userRepository.findById(userId).map(User::getFullName).orElse("Hoc vien");
+        return userRepository.findById(userId).map(User::getFullName).orElse("Học viên");
     }
 
     private String formatTime(Instant instant) {
@@ -725,17 +742,17 @@ public class ScheduleService {
     private String describeSession(ClassSession s) {
         SchoolClass c = s.getClazz();
         StringBuilder sb = new StringBuilder();
-        sb.append("Lop: ").append(c.getName());
+        sb.append("Lớp: ").append(c.getName());
         if (c.getSubject() != null && c.getSubject().getName() != null) {
             sb.append(" (").append(c.getSubject().getName()).append(')');
         }
-        sb.append("\nNgay: ").append(s.getSessionDate().format(DATE_FMT));
-        sb.append("\nGio: ").append(s.getStartTime().format(TIME_FMT));
+        sb.append("\nNgày: ").append(s.getSessionDate().format(DATE_FMT));
+        sb.append("\nGiờ: ").append(s.getStartTime().format(TIME_FMT));
         if (s.endTime() != null) {
             sb.append(" - ").append(s.endTime().format(TIME_FMT));
         }
         if (s.getRoom() != null) {
-            sb.append("\nPhong: ").append(s.getRoom().getName());
+            sb.append("\nPhòng: ").append(s.getRoom().getName());
             if (s.getRoom().getBranch() != null) {
                 sb.append(" - ").append(s.getRoom().getBranch().getName());
             }
@@ -863,11 +880,11 @@ public class ScheduleService {
 
         String studentName = studentName(userId);
         String when = formatTime(a.getCheckInAt());
-        String stt = late ? "tre" : "dung gio";
-        String shortBody = studentName + " da diem danh luc " + when + " (" + stt + ").";
+        String stt = late ? "trễ" : "đúng giờ";
+        String shortBody = studentName + " đã điểm danh lúc " + when + " (" + stt + ").";
         String fullContent = shortBody + "\n\n" + describeSession(s);
         notifyParentsAttendance(s, userId, NotificationType.CHECKIN_OK,
-                "Da check-in", shortBody, "Con da check-in", fullContent, "CHECKIN_OK");
+                "Đã check-in", shortBody, "Con đã check-in", fullContent, "CHECKIN_OK");
     }
 
     private void requireWithinOnlineCheckinWindow(ClassSession s) {

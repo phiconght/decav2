@@ -322,31 +322,31 @@ public class InvoiceService {
         String prefix;
         if (type == NotificationType.FEE_CONFIRMED) {
             prefix = "FEE_CONFIRMED";
-            shortTitle = "Thong bao hoc phi";
-            shortBody = "Hoc phi lop " + className + " ky " + period + ": " + amountStr
-                    + " d. Mo app de thanh toan.";
-            fullTitle = "Thong bao hoc phi";
-            fullContent = "Hoc vien: " + safeName(inv.getStudent())
-                    + "\nLop: " + className
-                    + "\nKy: " + period
-                    + "\nSo buoi: " + inv.getSessionCount()
-                    + "\nSo tien: " + amountStr + " d"
-                    + "\n\nBam nut Thanh toan trong app de quet QR VietQR."
-                    + "\nNoi dung chuyen khoan: " + inv.getPaymentCode();
+            shortTitle = "Thông báo học phí";
+            shortBody = "Học phí lớp " + className + " kỳ " + period + ": " + amountStr
+                    + " đ. Mở app để thanh toán.";
+            fullTitle = "Thông báo học phí";
+            fullContent = "Học viên: " + safeName(inv.getStudent())
+                    + "\nLớp: " + className
+                    + "\nKỳ: " + period
+                    + "\nSố buổi: " + inv.getSessionCount()
+                    + "\nSố tiền: " + amountStr + " đ"
+                    + "\n\nBấm nút Thanh toán trong app để quét QR VietQR."
+                    + "\nNội dung chuyển khoản: " + inv.getPaymentCode();
         } else { // FEE_PAID
             prefix = "FEE_PAID";
-            shortTitle = "Da nhan hoc phi";
-            shortBody = "Trung tam da nhan hoc phi " + amountStr + " d — lop " + className
-                    + " ky " + period + ". Cam on quy phu huynh.";
-            fullTitle = "Da nhan hoc phi";
-            fullContent = "Trung tam da ghi nhan da thu hoc phi."
-                    + "\nHoc vien: " + safeName(inv.getStudent())
-                    + "\nLop: " + className
-                    + "\nKy: " + period
-                    + "\nSo tien: " + amountStr + " d"
-                    + (inv.getPaidAt() != null ? "\nThoi diem ghi nhan: " + inv.getPaidAt() : "")
-                    + (StringUtils.hasText(inv.getNote()) ? "\nGhi chu: " + inv.getNote() : "")
-                    + "\n\nCam on quy phu huynh.";
+            shortTitle = "Đã nhận học phí";
+            shortBody = "Trung tâm đã nhận học phí " + amountStr + " đ — lớp " + className
+                    + " kỳ " + period + ". Cảm ơn quý phụ huynh.";
+            fullTitle = "Đã nhận học phí";
+            fullContent = "Trung tâm đã ghi nhận đã thu học phí."
+                    + "\nHọc viên: " + safeName(inv.getStudent())
+                    + "\nLớp: " + className
+                    + "\nKỳ: " + period
+                    + "\nSố tiền: " + amountStr + " đ"
+                    + (inv.getPaidAt() != null ? "\nThời điểm ghi nhận: " + inv.getPaidAt() : "")
+                    + (StringUtils.hasText(inv.getNote()) ? "\nGhi chú: " + inv.getNote() : "")
+                    + "\n\nCảm ơn quý phụ huynh.";
         }
         String payload = "{\"invoiceId\":" + invoiceId + ",\"classId\":" + classId
                 + ",\"studentId\":" + studentId + "}";

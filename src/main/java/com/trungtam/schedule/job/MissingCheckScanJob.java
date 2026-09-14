@@ -22,10 +22,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.EnumSet;
 import java.util.List;
 
 /**
- * Job quet thieu check-in / check-out cho cac buoi PLANNED trong ngay.
+ * Job quet thieu check-in / check-out cho cac buoi PLANNED hoac IN_PROGRESS trong ngay
+ * (buoi da bat dau nhung SessionStateJob chua kip dong sang DONE).
  * <ul>
  *   <li>HV con CHUA_CHECKIN, da qua (start + grace) va KHONG nghi phep -> MISSING_CHECKIN cho phu huynh.</li>
  *   <li>HV da check-in nhung chua check-out, da qua (end + grace) -> MISSING_CHECKOUT cho phu huynh.</li>
@@ -63,7 +65,8 @@ public class MissingCheckScanJob {
 
         int missingCheckin = 0;
         int missingCheckout = 0;
-        for (ClassSession s : sessionRepository.findBySessionDateAndStatus(today, SessionStatus.PLANNED)) {
+        for (ClassSession s : sessionRepository.findBySessionDateAndStatusIn(
+                today, EnumSet.of(SessionStatus.PLANNED, SessionStatus.IN_PROGRESS))) {
             LocalTime start = s.getStartTime();
             Integer duration = s.getDurationMinutes();
             if (start == null || duration == null) {
@@ -86,7 +89,7 @@ public class MissingCheckScanJob {
                         && !leaveRequestRepository.isOnLeave(studentId, s.getId(), s.getSessionDate(),
                                 s.getClazz().getId(), LeaveStatus.APPROVED)) {
                     missingCheckin += notifyParents(studentId, s.getId(), NotificationType.MISSING_CHECKIN,
-                            "Chua check-in", "Hoc vien chua check-in buoi hoc.",
+                            "Chưa check-in", "Học viên chưa check-in buổi học.",
                             "MISSING_CHECKIN:" + s.getId());
                     continue;
                 }
@@ -97,7 +100,7 @@ public class MissingCheckScanJob {
                         && a.getCheckOutAt() == null
                         && status != AttendanceStatus.CO_PHEP) {
                     missingCheckout += notifyParents(studentId, s.getId(), NotificationType.MISSING_CHECKOUT,
-                            "Chua check-out", "Hoc vien chua check-out khoi buoi hoc.",
+                            "Chưa check-out", "Học viên chưa check-out khỏi buổi học.",
                             "MISSING_CHECKOUT:" + s.getId());
                 }
             }

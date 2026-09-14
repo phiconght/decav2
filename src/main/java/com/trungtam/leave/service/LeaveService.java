@@ -151,9 +151,9 @@ public class LeaveService {
         Long leaveId = leave.getId();
         Long studentId = leave.getStudent().getId();
         String studentName = leave.getStudent().getFullName() != null
-                ? leave.getStudent().getFullName() : "Hoc vien";
-        String title = "Con vua gui don xin nghi";
-        String body = studentName + " vua gui mot don xin nghi.";
+                ? leave.getStudent().getFullName() : "Học viên";
+        String title = "Con vừa gửi đơn xin nghỉ";
+        String body = studentName + " vừa gửi một đơn xin nghỉ.";
         String content = body + "\n\n" + describeLeave(leave);
         String payload = "{\"leaveId\":" + leaveId + "}";
         for (Long parentId : studentParentRepository.findParentIdsByStudentId(studentId)) {
@@ -238,10 +238,10 @@ public class LeaveService {
     private void notifyLeaveResult(LeaveRequest leave, boolean approved) {
         Long leaveId = leave.getId();
         Long studentId = leave.getStudent().getId();
-        String title = approved ? "Don nghi duoc duyet" : "Don nghi bi tu choi";
+        String title = approved ? "Đơn nghỉ được duyệt" : "Đơn nghỉ bị từ chối";
         String body = approved
-                ? "Don xin nghi cua hoc vien da duoc duyet."
-                : "Don xin nghi cua hoc vien da bi tu choi.";
+                ? "Đơn xin nghỉ của học viên đã được duyệt."
+                : "Đơn xin nghỉ của học viên đã bị từ chối.";
         String content = body + "\n\n" + describeLeave(leave);
         String payload = "{\"leaveId\":" + leaveId + ",\"approved\":" + approved + "}";
 
@@ -263,21 +263,21 @@ public class LeaveService {
         StringBuilder sb = new StringBuilder();
         if (leave.getScope() == LeaveScope.SESSION && leave.getSession() != null) {
             ClassSession s = leave.getSession();
-            sb.append("Pham vi: 1 buoi hoc");
-            sb.append("\nNgay: ").append(s.getSessionDate().format(DATE_FMT));
+            sb.append("Phạm vi: 1 buổi học");
+            sb.append("\nNgày: ").append(s.getSessionDate().format(DATE_FMT));
             if (s.getStartTime() != null) {
-                sb.append(" luc ").append(s.getStartTime().format(TIME_FMT));
+                sb.append(" lúc ").append(s.getStartTime().format(TIME_FMT));
             }
             if (s.getClazz() != null) {
-                sb.append("\nLop: ").append(s.getClazz().getName());
+                sb.append("\nLớp: ").append(s.getClazz().getName());
             }
         } else {
-            sb.append("Pham vi: tu ").append(leave.getDateFrom() != null ? leave.getDateFrom().format(DATE_FMT) : "?")
-                    .append(" den ").append(leave.getDateTo() != null ? leave.getDateTo().format(DATE_FMT) : "?");
-            sb.append("\nLop: ").append(leave.getClazz() != null ? leave.getClazz().getName() : "Tat ca lop");
+            sb.append("Phạm vi: từ ").append(leave.getDateFrom() != null ? leave.getDateFrom().format(DATE_FMT) : "?")
+                    .append(" đến ").append(leave.getDateTo() != null ? leave.getDateTo().format(DATE_FMT) : "?");
+            sb.append("\nLớp: ").append(leave.getClazz() != null ? leave.getClazz().getName() : "Tất cả lớp");
         }
         if (leave.getReason() != null && !leave.getReason().isBlank()) {
-            sb.append("\nLy do: ").append(leave.getReason());
+            sb.append("\nLý do: ").append(leave.getReason());
         }
         return sb.toString();
     }

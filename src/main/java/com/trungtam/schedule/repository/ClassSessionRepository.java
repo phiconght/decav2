@@ -89,16 +89,41 @@ public interface ClassSessionRepository
     List<ClassSession> findFutureGeneratedBySchedule(@Param("scheduleId") Long scheduleId,
                                                      @Param("from") LocalDate from);
 
-    /** Buoi PLANNED da qua gio ket thuc tinh den thoi diem mistart (cho CloseSessionJob). */
+    /**
+     * Buoi PLANNED da den (hoac qua) gio bat dau, ngay hom nay (cho
+     * SessionStateJob: PLANNED -> IN_PROGRESS).
+     */
     @Query(value = """
         SELECT * FROM class_sessions s
         WHERE s.status = 'PLANNED'
+          AND s.session_date = :today
+          AND s.start_time <= CAST(:nowTime AS time)
+        """, nativeQuery = true)
+    List<ClassSession> findPlannedStarted(@Param("today") LocalDate today,
+                                          @Param("nowTime") LocalTime nowTime);
+
+    /**
+     * Buoi PLANNED hoac IN_PROGRESS da qua gio ket thuc tinh den thoi diem
+     * hien tai (cho SessionStateJob: -> DONE).
+     */
+    @Query(value = """
+        SELECT * FROM class_sessions s
+        WHERE s.status IN ('PLANNED', 'IN_PROGRESS')
           AND (s.session_date < :today
                OR (s.session_date = :today
                    AND (s.start_time + make_interval(mins => s.duration_minutes)) <= CAST(:nowTime AS time)))
         """, nativeQuery = true)
-    List<ClassSession> findPlannedPastEnd(@Param("today") LocalDate today,
-                                          @Param("nowTime") LocalTime nowTime);
+    List<ClassSession> findOpenPastEnd(@Param("today") LocalDate today,
+                                       @Param("nowTime") LocalTime nowTime);
+
+    /** Buoi cua 1 ngay, dung cho cac job quet (missing-checkin can ca PLANNED+IN_PROGRESS). */
+    @Query("""
+        SELECT s FROM ClassSession s
+        WHERE s.sessionDate = :date AND s.status IN :statuses
+        """)
+    List<ClassSession> findBySessionDateAndStatusIn(
+            @Param("date") LocalDate date,
+            @Param("statuses") java.util.Collection<com.trungtam.schedule.entity.SessionStatus> statuses);
 
     // ----- TRUNG PHONG: buoi cung phong, cung ngay, giao gio (NATIVE + OVERLAPS) -----
     @Query(value = """

@@ -281,7 +281,7 @@ public class TeacherAttendanceService {
         return ZoneId.of(timezone);
     }
 
-    /** Cho CloseSessionJob: buoi DONE ma chua ai cham -> tao dong VANG. Idempotent. */
+    /** Cho SessionStateJob: buoi DONE ma chua ai cham -> tao dong VANG. Idempotent. */
     @Transactional
     public void markAbsentIfMissing(ClassSession s) {
         if (s.getTeacher() == null || staRepository.existsBySessionId(s.getId())) {

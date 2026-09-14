@@ -59,6 +59,14 @@ public record ClassOutlineResponse(
             String endTime,
             String roomName,
             String teacherName,
+            /**
+             * "PLANNED" | "IN_PROGRESS" | "DONE" | "CANCELLED" — doc thang
+             * tu cot status trong DB. SessionStateJob quet moi phut va tu
+             * chuyen PLANNED -> IN_PROGRESS (da qua gio bat dau) -> DONE (da
+             * qua gio ket thuc), theo gio server. Web/Mobile CHI so sanh
+             * chuoi status nay de quyet dinh cho mo xem video/de thi/link
+             * Zoom, KHONG tu tinh gio o client (SPEC bug 14/09/2026).
+             */
             String status,
             String cancelReason,
             String attendanceStatus,
